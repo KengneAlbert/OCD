@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 222 140" role="img" aria-label="OCD Live">
+  <!-- PLACEHOLDER — remplacer par le logo officiel OCD Live (même nom de fichier) -->
+  <g fill="none" stroke="#E8792B" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="45" cy="55" r="30"/>
+    <path d="M136.2 76.2 A30 30 0 1 1 136.2 33.8"/>
+    <path d="M148 25 H168 A30 30 0 0 1 168 85 H148 Z"/>
+    <!-- maillon : le haut du C repasse devant la barre du D -->
+    <path d="M128 29.5 A30 30 0 0 1 141.5 40"/>
+  </g>
+  <text x="111" y="130" text-anchor="middle" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="38" fill="#111111" letter-spacing="-1">Live</text>
+</svg>
