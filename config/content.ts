@@ -30,7 +30,7 @@ export const faq: FaqItem[] = [
   {
     question: "Comment est confirmé mon créneau ?",
     answer:
-      "Ta demande arrive directement sur notre WhatsApp. L'équipe vérifie la disponibilité, puis te confirme le créneau et les modalités de paiement sur WhatsApp. Ton créneau est définitivement bloqué après paiement.",
+      "Ta demande arrive directement à l'équipe et tu reçois un email de confirmation avec ta référence. L'équipe vérifie la disponibilité, puis te confirme le créneau et les modalités de paiement par email. Ton créneau est définitivement bloqué après paiement.",
   },
   {
     question: "Puis-je reporter mon live ?",
@@ -68,7 +68,7 @@ export const prepareChecklist = [
 export const bookingConditions = [
   "En présentiel, arrive au studio 30 minutes avant le début de ton créneau.",
   "Tout retard est décompté de la durée du live, qui se termine à l'heure prévue.",
-  "Le créneau est confirmé par l'équipe sur WhatsApp et définitivement bloqué après paiement.",
+  "Le créneau est confirmé par l'équipe par email et définitivement bloqué après paiement.",
   "Report possible jusqu'à 48 heures avant le live, selon les disponibilités. Passé ce délai, le live est dû.",
   "OCD Live peut refuser ou interrompre un live qui ne respecte pas les contenus autorisés.",
 ];

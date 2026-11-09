@@ -1,51 +1,37 @@
 "use client";
 
-import type { UseFormRegisterReturn } from "react-hook-form";
-import { countries, countryGroups } from "@/config/countries";
-import { FieldError, Input, Label, Select } from "@/components/ui/form-controls";
+import { useMemo } from "react";
+import { useController, type Control, type FieldValues, type Path, type UseFormRegisterReturn } from "react-hook-form";
+import { FieldError, Input, Label } from "@/components/ui/form-controls";
+import { SelectMenu } from "@/components/ui/select-menu";
+import { countryOptions } from "./options";
 
-/** Drapeau emoji à partir du code ISO (ex. « TG » → 🇹🇬). */
-export function flagEmoji(code: string): string {
-  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
-}
+export { flagEmoji } from "./options";
 
-export function CountryOptions({ withDial = false }: { withDial?: boolean }) {
-  return (
-    <>
-      {countryGroups.map((group) => (
-        <optgroup key={group.region} label={group.label}>
-          {countries
-            .filter((c) => c.region === group.region)
-            .map((c) => (
-              <option key={c.code} value={c.code}>
-                {withDial ? `${flagEmoji(c.code)} ${c.dialCode} · ${c.name}` : `${flagEmoji(c.code)} ${c.name}`}
-              </option>
-            ))}
-        </optgroup>
-      ))}
-    </>
-  );
-}
-
-/** Téléphone WhatsApp : indicatif pays (Togo par défaut) + numéro. */
-export function PhoneField({
+/** Téléphone WhatsApp : indicatif pays (Togo par défaut, avec recherche) + numéro. */
+export function PhoneField<T extends FieldValues>({
   id,
-  countryRegister,
+  control,
+  countryName,
   numberRegister,
   countryError,
   numberError,
   label = "Téléphone WhatsApp",
 }: {
   id: string;
-  countryRegister: UseFormRegisterReturn;
+  control: Control<T>;
+  countryName: Path<T>;
   numberRegister: UseFormRegisterReturn;
   countryError?: string;
   numberError?: string;
   label?: string;
 }) {
+  const { field } = useController({ control, name: countryName });
+  const options = useMemo(() => countryOptions(true), []);
   const error = countryError ?? numberError;
   const errorId = error ? `${id}-erreur` : undefined;
   const hintId = `${id}-aide`;
+
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>
@@ -55,16 +41,19 @@ export function PhoneField({
         </span>
       </Label>
       <div className="flex gap-2">
-        <div className="w-[7.5rem] shrink-0 sm:w-44">
-          <Select
-            aria-label="Indicatif pays"
-            aria-invalid={Boolean(countryError)}
-            autoComplete="tel-country-code"
-            {...countryRegister}
-          >
-            <CountryOptions withDial />
-          </Select>
-        </div>
+        <SelectMenu
+          aria-label="Indicatif pays"
+          aria-invalid={Boolean(countryError)}
+          value={field.value as string}
+          onChange={field.onChange}
+          onBlur={field.onBlur}
+          options={options}
+          searchable
+          searchPlaceholder="Pays ou indicatif…"
+          compact
+          className="w-[7.75rem] shrink-0 sm:w-36"
+          panelClassName="w-[19rem]"
+        />
         <Input
           id={id}
           type="tel"

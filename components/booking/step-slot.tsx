@@ -20,7 +20,27 @@ export function StepSlot() {
     }
   }, []);
 
-  const slots = useMemo(() => (state.date ? getSlotsForDate(state.date, now) : []), [state.date, now]);
+  // Créneaux déjà réservés par d'autres clients (Supabase). Silencieux si l'API est indisponible.
+  const [taken, setTaken] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!state.date) return;
+    const ctrl = new AbortController();
+    fetch(`/api/availability?from=${state.date}&to=${state.date}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : { taken: [] }))
+      .then((json: { taken?: { slotStart: string }[] }) => setTaken(new Set((json.taken ?? []).map((t) => t.slotStart))))
+      .catch(() => undefined);
+    return () => ctrl.abort();
+  }, [state.date]);
+
+  const slots = useMemo(
+    () => (state.date ? getSlotsForDate(state.date, now).map((s) => (taken.has(s.start) ? { ...s, available: false } : s)) : []),
+    [state.date, now, taken],
+  );
+
+  // Si le créneau choisi vient d'être pris, on le désélectionne.
+  useEffect(() => {
+    if (state.slotStart && taken.has(state.slotStart)) update({ slotStart: undefined });
+  }, [taken, state.slotStart, update]);
   const showConversion = state.liveType === "distance" && visitorTz && state.date;
   const sameZone =
     showConversion && slots[0] ? convertSlotToTimeZone(state.date!, slots[0].start, slots[0].end, visitorTz!).sameAsStudio : true;
@@ -83,7 +103,7 @@ export function StepSlot() {
 
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <span aria-hidden className="size-2 rounded-full bg-whatsapp" />
-        Disponibilité confirmée par l&apos;équipe sur WhatsApp.
+        Les créneaux déjà réservés sont marqués « Complet ».
       </p>
     </StepShell>
   );

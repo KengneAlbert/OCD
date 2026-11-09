@@ -38,10 +38,17 @@ npm run dev                  # http://localhost:3000
 | ----------------------------- | -------------------------- | ----------------------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL`        | `https://ocdlive.com`      | URL publique (SEO, sitemap, Open Graph)                           |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | `22890123456`              | Numéro qui reçoit les réservations (**sans `+` ni espaces**)      |
-| `NOTIFICATION_PROVIDER`       | `whatsapp`                 | `whatsapp` (phase 1), `brevo` (phase 2) ou `both`                  |
+| `NOTIFICATION_PROVIDER`       | `whatsapp`                 | Candidatures uniquement : `whatsapp`, `brevo` ou `both` (les réservations partent toujours par email) |
 | `BREVO_API_KEY`               | `xkeysib-…`                | Clé API Brevo (phase 2)                                           |
 | `BREVO_SENDER_EMAIL`          | `reservations@ocdlive.com` | Expéditeur **validé** dans Brevo                                  |
 | `OCD_TEAM_EMAIL`              | `equipe@ocdlive.com`       | Adresse de l'équipe qui reçoit les réservations                   |
+| `BREVO_SENDER_NAME`           | `OCD Live`                 | Nom de l'expéditeur (facultatif)                                   |
+| `NEXT_PUBLIC_SUPABASE_URL`    | `https://xxx.supabase.co`  | Projet Supabase (stockage + admin)                                |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ…`                   | Clé publique (connexion à l'admin)                                 |
+| `SUPABASE_SERVICE_ROLE_KEY`   | `eyJ…`                     | Clé **secrète**, serveur uniquement (lecture / écriture des données) |
+| `ADMIN_EMAILS`                | `a@ocdlive.com,b@ocdlive.com` | Emails autorisés à se connecter à `/admin`                     |
+| `SWINMO_SECRET_KEY`           | `sk_test_…` / `sk_live_…`  | Clé secrète Swinmo Pay (paiement Mobile Money)                    |
+| `SWINMO_WEBHOOK_SECRET`       | `…`                        | Secret du webhook Swinmo (vérification de signature)              |
 
 > ⚠️ Les variables `NEXT_PUBLIC_*` et `NOTIFICATION_PROVIDER` sont lues **au build** : après modification sur Vercel, relancer un déploiement.
 
@@ -75,7 +82,11 @@ lib/
   booking.ts               Étapes du tunnel, validation, objet Reservation
   reference.ts             Référence unique OCD-XXXXXX
   validation/              Schémas zod (réservation, candidature)
-  notifications/           index.ts (abstraction) · provider.ts · brevo.ts (serveur)
+  notifications/           index.ts (abstraction) · provider.ts
+  emails/                  layout.ts · templates.ts (gabarits) · send.ts (Brevo + journal) · samples.ts
+  db/                      reservations.ts · admin-queries.ts · activity.ts (Supabase, serveur)
+  supabase/                clients service_role / session · env.ts
+  admin/                   auth.ts · actions.ts (server actions) · status.ts · filters.ts
   rate-limit.ts  storage.ts  utils.ts
 components/
   booking/                 BookingProvider, Stepper, BookingCalendar, StepType, StepDate,
@@ -105,23 +116,76 @@ Pour les photos : déposer les fichiers dans `public/studio/` puis renseigner `s
 ### Logo
 Remplacer `public/logo-ocd-live.svg` par le fichier officiel (même nom). Aucun autre changement.
 
-## Envoi des réservations
+## Envoi et stockage des réservations
 
 ```
-sendReservation(reservation)        lib/notifications/index.ts
- ├─ whatsapp → ouvre https://wa.me/<NUMÉRO>?text=<message>  (phase 1)
- └─ brevo    → POST /api/reservations → lib/notifications/brevo.ts  (phase 2)
+sendReservation(reservation)              lib/notifications/index.ts
+ ├─ POST /api/reservations (toujours)
+ │   ├─ validation zod + honeypot + rate limit + créneau valide
+ │   ├─ enregistrement Supabase (si configuré) → un créneau ne peut être pris qu'une fois
+ │   └─ emails Brevo : confirmation au client + alerte à l'équipe
+ └─ (pas de WhatsApp : les réservations partent uniquement par email)
 ```
 
-Le message WhatsApp est construit par `buildReservationMessage()` (`lib/whatsapp.ts`), avec une référence `OCD-XXXXXX` générée par `generateReference()`.
+**Les réservations sont envoyées uniquement par email** (`RESERVATION_PROVIDER = "brevo"` dans `lib/notifications/provider.ts`) : l'email du client est obligatoire, et Brevo **doit** être configuré en production (sinon la réservation n'est acceptée que si Supabase l'a enregistrée). `NOTIFICATION_PROVIDER` ne règle plus que les **candidatures** (WhatsApp, email ou les deux). Les créneaux déjà réservés sont lus via `GET /api/availability` et affichés « Complet » dans le tunnel.
 
-### Activer Brevo (phase 2)
-1. Créer un compte [Brevo](https://www.brevo.com), valider l'expéditeur (`Senders & IP`) et générer une clé API (`SMTP & API`).
-2. Sur Vercel, renseigner `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `OCD_TEAM_EMAIL`.
-3. Passer `NOTIFICATION_PROVIDER=brevo` (emails seuls) ou `both` (WhatsApp + emails).
-4. Redéployer. C'est tout : l'email devient obligatoire dans le formulaire, l'équipe reçoit chaque réservation et le client un email de confirmation.
+### Brancher Supabase (stockage + admin)
+1. Créer un projet sur [Supabase](https://supabase.com).
+2. **SQL Editor** → coller et exécuter `supabase/migrations/0001_init.sql` (tables `reservations`, `candidatures`, `activity_log`, `email_log`, RLS activé sans accès public).
+3. **Authentication → Users → Add user** : créer un compte (email + mot de passe) par membre de l'équipe. Désactiver les inscriptions publiques (**Authentication → Sign In / Providers → Allow new users to sign up : off**).
+4. Renseigner `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` et `ADMIN_EMAILS` (les mêmes emails), puis redéployer.
 
-Protections de l'API : validation zod côté serveur, vérification du créneau, champ piège (honeypot) anti-spam, limite de 5 requêtes / 10 min / IP (en mémoire ; passer à Upstash Redis pour une limite globale multi-instances).
+### Activer Brevo (emails)
+1. Créer un compte [Brevo](https://www.brevo.com), valider l'expéditeur et le domaine (`Senders, Domains & Dedicated IPs`, enregistrements DKIM / DMARC) et générer une clé API (`SMTP & API`).
+2. Renseigner `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `OCD_TEAM_EMAIL`.
+3. Redéployer. Les réservations partent alors par email. Pour les candidatures, choisir `NOTIFICATION_PROVIDER=brevo` (email) ou `both`.
+
+### Emails envoyés (`lib/emails/templates.ts`)
+| Email | Destinataire | Déclencheur |
+|---|---|---|
+| Demande reçue | Client | Automatique à la réservation (si email) |
+| Nouvelle réservation | Équipe | Automatique, avec lien vers la fiche admin |
+| Créneau confirmé (+ message, paiement, checklist) | Client | Statut « Confirmée » dans l'admin |
+| Paiement reçu | Client | Statut « Payée » |
+| Rappel J-1 | Client | Bouton dans la fiche admin |
+| Merci après le live | Client | Statut « Réalisée » |
+| Réservation annulée (+ motif) | Client | Statut « Annulée » |
+| Candidature reçue / alerte équipe | Candidate / équipe | Automatique |
+| Invitation à l'essai, retenue, non retenue | Candidate | Statut dans l'admin |
+
+Aperçu de tous les gabarits (desktop, mobile, texte brut) : **Admin → Emails**. Chaque envoi est journalisé (`email_log`) avec son statut et l'éventuelle erreur Brevo.
+
+### Espace admin (`/admin`)
+- **Tableau de bord** : réservations à traiter, lives à venir, chiffre encaissé, graphique des 14 derniers jours.
+- **Réservations** : recherche (référence, nom, business, téléphone), filtres statut / type / dates, tri par date de live, export CSV (compatible Excel).
+- **Fiche réservation** : toutes les infos, boutons WhatsApp / appel / email, changement de statut avec email automatique au client, rappel J-1, notes internes, historique complet et emails envoyés.
+- **Candidatures** : même logique (statuts, emails, notes, historique).
+- **Journal** : toutes les actions (création, changement de statut, note, email, connexion, export) avec l'auteur et l'heure.
+
+Sécurité : le middleware redirige vers `/admin/connexion`, chaque page et action vérifie la session **et** la présence de l'email dans `ADMIN_EMAILS`. Les données ne sont lues qu'avec la clé service_role, côté serveur ; la clé publique ne donne accès à aucune table (RLS sans policy).
+
+Protections de l'API : validation zod côté serveur, vérification du créneau, honeypot anti-spam, limite de 5 requêtes / 10 min / IP (en mémoire ; passer à Upstash Redis pour une limite globale multi-instances).
+
+## Paiement Mobile Money (Swinmo Pay)
+
+```
+Réservation enregistrée → lien /paiement/<jeton secret> (page de confirmation + emails)
+  └─ « Payer » → POST /api/payments/session  (montant lu en base, jamais dans le navigateur)
+       └─ modale Swinmo (inline.js) : T-Money, Moov Money, Orange, MTN, Wave…
+            ├─ onSuccess → POST /api/payments/confirm → GET /v1/charges/:id chez Swinmo
+            └─ webhook charge.succeeded / charge.failed → POST /api/payments/webhook (signature HMAC vérifiée)
+                 └─ applyCharge() : contrôle montant + devise + référence, une seule fois
+                      → réservation « Payée » + email « Paiement reçu » + journal
+```
+
+**Mise en place**
+1. Exécuter `supabase/migrations/0002_payments.sql` (table `payments` + jeton de paiement sur chaque réservation).
+2. Créer un compte sur [Swinmo Pay](https://pay.swinmo.shop), copier la clé `sk_test_…` dans `SWINMO_SECRET_KEY`.
+3. Dans le tableau de bord Swinmo, déclarer le webhook `https://<domaine>/api/payments/webhook` et copier son secret dans `SWINMO_WEBHOOK_SECRET`.
+4. Tester en sandbox : un numéro finissant par **55** échoue (fonds insuffisants), par **99** échoue (PIN refusé), tout autre numéro réussit.
+5. Après validation KYB, remplacer par la clé `sk_live_…` et déclarer le webhook live avec son propre secret.
+
+Les webhooks Swinmo ne sont **jamais renvoyés** : le retour navigateur (`/api/payments/confirm`) et le bouton **« Vérifier auprès de Swinmo »** de la fiche admin servent de rattrapage. Frais Swinmo : 2,5 % par paiement réussi, à la charge d'OCD Live (le net est visible dans l'admin). Les prix sont en FCFA (XOF) ; un client hors zone XOF paie dans sa devise, convertie par Swinmo.
 
 ## Déploiement Vercel
 
@@ -133,10 +197,7 @@ Protections de l'API : validation zod côté serveur, vérification du créneau,
 
 | Évolution | Où brancher |
 |---|---|
-| **Paiement Mobile Money** (FedaPay / CinetPay / KkiaPay : T-Money, Flooz, MTN, Orange Money, Wave, carte) | Bouton dans `components/booking/step-summary.tsx` + Route Handler `app/api/payments/` + webhook de confirmation |
-| **Base de données** (Supabase ou Postgres + Prisma) | Remplacer `scheduleConfig.unavailableSlots` par une requête dans `getSlotsForDate()` ; enregistrer la réservation dans `app/api/reservations/route.ts` |
-| **Tableau de bord admin** (statuts en attente / confirmée / terminée, export CSV) | `app/admin/` protégé par authentification |
-| **Rappel automatique 24h avant** | Vercel Cron → Route Handler qui envoie l'email Brevo |
+| **Rappel J-1 automatique** | Vercel Cron → Route Handler qui appelle `reservationReminderEmail()` pour les lives du lendemain (le rappel manuel existe déjà dans l'admin) |
 | **Multilingue FR/EN** | `next-intl` : extraire les textes de `config/` et des composants |
 
 ## Accessibilité et performance

@@ -1,12 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Instrument_Serif, JetBrains_Mono } from "next/font/google";
-import { Footer } from "@/components/layout/footer";
-import { Header } from "@/components/layout/header";
-import { LaunchBanner } from "@/components/layout/launch-banner";
 import { themeInitScript } from "@/components/layout/theme-toggle";
-import { WhatsAppFloat } from "@/components/layout/whatsapp-float";
 import { MotionProvider } from "@/components/motion/motion";
-import { JsonLd, localBusinessJsonLd } from "@/components/seo/json-ld";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
 
@@ -32,8 +27,6 @@ export const metadata: Metadata = {
     "marketing",
     "OCD Live",
   ],
-  authors: [{ name: "REVOLUTION" }],
-  creator: "REVOLUTION",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -66,14 +59,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           Aller au contenu
         </a>
-        <MotionProvider>
-          <LaunchBanner />
-          <Header />
-          <main id="contenu">{children}</main>
-          <Footer />
-          <WhatsAppFloat />
-        </MotionProvider>
-        <JsonLd data={localBusinessJsonLd} />
+        <MotionProvider>{children}</MotionProvider>
       </body>
     </html>
   );

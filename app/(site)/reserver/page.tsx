@@ -7,7 +7,7 @@ import { Chyron } from "@/components/brand/broadcast";
 export const metadata: Metadata = {
   title: "Réserver mon live",
   description:
-    "Réserve ton créneau de live OCD Live en 6 étapes : type de live (présentiel à Lomé ou à distance), date, heure, package et informations. Confirmation sur WhatsApp.",
+    "Réserve ton créneau de live OCD Live en 6 étapes : type de live (présentiel à Lomé ou à distance), date, heure, package et informations. Confirmation par email.",
   alternates: { canonical: "/reserver" },
 };
 

@@ -48,8 +48,8 @@ export default function MentionsLegalesPage() {
           <h2 id="conditions">Conditions de réservation</h2>
           <h3>Réservation et confirmation</h3>
           <p>
-            La demande envoyée depuis le site (via WhatsApp ou par email) ne vaut pas réservation définitive. L&apos;équipe OCD Live
-            confirme la disponibilité du créneau sur WhatsApp. Le créneau est bloqué après réception du paiement.
+            La demande envoyée depuis le site ne vaut pas réservation définitive. L&apos;équipe OCD Live
+            confirme la disponibilité du créneau par email. Le créneau est bloqué après réception du paiement.
           </p>
           <h3>Règles applicables</h3>
           <ul>

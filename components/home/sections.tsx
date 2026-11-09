@@ -129,7 +129,7 @@ export const howSteps = [
   { icon: MousePointerClick, title: "Choisis ton type", text: "Live au studio à Lomé, ou à distance depuis chez toi ou ta boutique." },
   { icon: CalendarDays, title: "Choisis ta date et ton heure", text: "Des créneaux de 1h30, du lundi au samedi, à partir du 1er décembre." },
   { icon: Package, title: "Choisis ton package", text: "Un live découverte, un pack de 4 lives, une formule tout le mois…" },
-  { icon: Send, title: "Envoie ta réservation", text: "Elle arrive directement sur notre WhatsApp. On te confirme ton créneau." },
+  { icon: Send, title: "Envoie ta réservation", text: "Elle arrive directement à l'équipe et tu reçois une confirmation par email." },
 ];
 
 const stepStyles = [
@@ -398,7 +398,7 @@ export function FinalCta() {
         <h2 className="mt-6 text-[clamp(3.4rem,13vw,10rem)] leading-[0.85] font-semibold tracking-[-0.055em]">
           Passe en <span className="accent text-ocd-orange-dark dark:text-ocd-orange">live.</span>
         </h2>
-        <p className="mx-auto mt-6 max-w-md text-lg text-muted-foreground">Les premiers créneaux de décembre partent vite. On te confirme sur WhatsApp.</p>
+        <p className="mx-auto mt-6 max-w-md text-lg text-muted-foreground">Les premiers créneaux de décembre partent vite. Confirmation par email.</p>
         <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
           <PillLink href="/reserver?type=presentiel">Live au studio</PillLink>
           <PillLink href="/reserver?type=distance" variant="dark">

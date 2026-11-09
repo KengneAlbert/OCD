@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-import { WhatsAppIcon } from "@/components/shared/icons";
+import { Loader2, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildReservation, firstInvalidStep } from "@/lib/booking";
-import { clientProvider, sendReservation, usesWhatsApp } from "@/lib/notifications";
+import { sendReservation } from "@/lib/notifications";
 import { generateReference } from "@/lib/reference";
 import { STORAGE_KEYS, writeSession } from "@/lib/storage";
 import { useBooking } from "./booking-provider";
@@ -18,6 +17,7 @@ export interface LastReservation {
   whatsappUrl?: string;
   whatsappBlocked?: boolean;
   emailed?: boolean;
+  payUrl?: string;
 }
 
 export function StepSummary() {
@@ -35,8 +35,6 @@ export function StepSummary() {
     [state, now, emailRequired],
   );
 
-  const viaWhatsApp = usesWhatsApp(clientProvider);
-
   const handleSend = async () => {
     if (!reservation) {
       const step = firstInvalidStep(state, now, emailRequired);
@@ -45,7 +43,6 @@ export function StepSummary() {
       return;
     }
     setSending(true);
-    // Appel direct dans le clic : WhatsApp s'ouvre avant tout await.
     const result = await sendReservation(reservation, { honeypot });
     if (!result.ok) {
       setSending(false);
@@ -57,6 +54,7 @@ export function StepSummary() {
       whatsappUrl: result.whatsappUrl,
       whatsappBlocked: result.whatsappBlocked,
       emailed: result.emailed,
+      payUrl: result.payUrl,
     };
     writeSession(STORAGE_KEYS.lastReservation, last);
     router.push("/confirmation");
@@ -89,15 +87,13 @@ export function StepSummary() {
       </div>
 
       <div className="space-y-3 rounded-3xl border border-border bg-surface p-5 sm:p-6">
-        <Button variant={viaWhatsApp ? "whatsapp" : "default"} size="lg" className="w-full whitespace-normal" onClick={handleSend} disabled={sending}>
-          {sending ? <Loader2 className="animate-spin" aria-hidden /> : viaWhatsApp ? <WhatsAppIcon /> : null}
-          {viaWhatsApp ? "Envoyer ma réservation sur WhatsApp" : "Envoyer ma réservation"}
+        <Button size="lg" className="w-full whitespace-normal" onClick={handleSend} disabled={sending}>
+          {sending ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
+          {sending ? "Envoi en cours…" : "Envoyer ma réservation"}
         </Button>
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-whatsapp" aria-hidden />
-          {viaWhatsApp
-            ? "WhatsApp s'ouvre avec ton message déjà rempli : il ne te reste qu'à appuyer sur « Envoyer ». L'équipe te confirme le créneau et le paiement."
-            : "Tu reçois une confirmation par email. L'équipe te confirme ensuite le créneau sur WhatsApp."}
+          {`Ta réservation est envoyée à l'équipe OCD Live et tu reçois une confirmation par email à ${reservation.info.email}. L'équipe te confirme ensuite le créneau et le paiement.`}
         </p>
       </div>
     </StepShell>

@@ -18,8 +18,8 @@ const timelines = [
     icon: Mic,
     title: "Ton live au studio",
     steps: [
-      { when: "Après ta réservation", what: "L'équipe te confirme le créneau et le paiement sur WhatsApp." },
-      { when: "La veille", what: "Rappel sur WhatsApp et derniers conseils pour ta présentation." },
+      { when: "Après ta réservation", what: "Tu reçois un email de confirmation, puis l'équipe te confirme le créneau et le paiement." },
+      { when: "La veille", what: "Rappel par email et derniers conseils pour ta présentation." },
       { when: "Jour J, 30 min avant", what: "Tu arrives au studio, on installe tes produits et on règle la lumière." },
       { when: "Pendant 1h30", what: "La régie lance le live : tu présentes, ton numéro et ton adresse s'affichent." },
       { when: "Après le live", what: "Tes nouveaux clients te contactent directement." },
@@ -29,7 +29,7 @@ const timelines = [
     icon: Globe2,
     title: "Ton live à distance",
     steps: [
-      { when: "Après ta réservation", what: "L'équipe te confirme le créneau et le paiement sur WhatsApp." },
+      { when: "Après ta réservation", what: "Tu reçois un email de confirmation, puis l'équipe te confirme le créneau et le paiement." },
       { when: "Avant le jour J", what: "Test de connexion avec l'équipe : image, son, cadrage." },
       { when: "Jour J, 15 min avant", what: "Tu te connectes, l'assistante OCD fait un dernier point avec toi." },
       { when: "Pendant 1h30", what: "Tu présentes depuis chez toi, l'assistante anime depuis le studio de Lomé." },

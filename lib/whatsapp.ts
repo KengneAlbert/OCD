@@ -73,6 +73,7 @@ export function buildCandidatureMessage(candidature: Candidature): string {
     `🎂 Âge : ${d.age} ans`,
     `📍 Quartier / Ville : ${d.location.trim()}`,
     `📞 WhatsApp : ${formatPhone(d.phoneCountry, d.phoneNumber)}`,
+    ...(d.email ? [`📧 Email : ${d.email.trim()}`] : []),
     `🗣️ Langues parlées : ${languages}`,
     `💼 Expérience de vente : ${experience}`,
     `🎬 Vidéo de présentation : ${or(d.videoUrl)}`,

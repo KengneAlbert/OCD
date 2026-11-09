@@ -46,9 +46,10 @@ export default function ConfidentialitePage() {
 
           <h2>Comment sont-elles transmises ?</h2>
           <p>
-            Quand tu valides un formulaire, un message pré-rempli s&apos;ouvre dans <strong>WhatsApp</strong> (service de Meta) : c&apos;est
-            toi qui l&apos;envoies à l&apos;équipe. Si l&apos;envoi par email est activé, tes informations sont transmises via{" "}
-            <strong>Brevo</strong> (prestataire d&apos;emails transactionnels). Le site est hébergé par <strong>Vercel</strong>.
+            Quand tu valides une réservation, tes informations sont enregistrées dans notre base de données hébergée par{" "}
+            <strong>Supabase</strong> et les emails de confirmation sont envoyés via <strong>Brevo</strong> (prestataire d&apos;emails
+            transactionnels). Le site est hébergé par <strong>Vercel</strong>. L&apos;équipe peut ensuite te contacter par téléphone ou
+            sur WhatsApp au numéro que tu as indiqué.
           </p>
 
           <h2>Durée de conservation</h2>

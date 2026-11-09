@@ -145,5 +145,7 @@ export interface SendResult {
   /** La fenêtre WhatsApp n'a pas pu s'ouvrir automatiquement. */
   whatsappBlocked?: boolean;
   emailed?: boolean;
+  /** Lien de paiement Mobile Money renvoyé par l'API (réservations). */
+  payUrl?: string;
   error?: string;
 }

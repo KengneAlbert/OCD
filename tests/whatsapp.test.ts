@@ -101,6 +101,7 @@ describe("buildCandidatureMessage", () => {
         location: "Bè, Lomé",
         phoneCountry: "TG",
         phoneNumber: "90 11 22 33",
+        email: "",
         languages: ["Français", "Éwé"],
         otherLanguages: "",
         hasSalesExperience: "oui",

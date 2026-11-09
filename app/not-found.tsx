@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { AfricaGlow } from "@/components/brand/africa-glow";
+import { Footer } from "@/components/layout/footer";
+import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
-    <div className="mx-auto flex max-w-xl flex-col items-center px-4 py-20 text-center">
+    <>
+    <Header />
+    <main id="contenu" className="mx-auto flex max-w-xl flex-col items-center px-4 py-20 text-center">
       <AfricaGlow className="mb-8 w-48" />
       <p className="font-display text-sm font-bold tracking-widest text-accent-text uppercase">Erreur 404</p>
       <h1 className="mt-2 text-4xl font-extrabold">Cette page n&apos;est pas en live</h1>
@@ -17,6 +21,8 @@ export default function NotFound() {
           <Link href="/reserver">Réserver mon live</Link>
         </Button>
       </div>
-    </div>
+    </main>
+    <Footer />
+    </>
   );
 }

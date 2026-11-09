@@ -21,6 +21,7 @@ const defaultValues: FormValues = {
   location: "",
   phoneCountry: DEFAULT_COUNTRY_CODE,
   phoneNumber: "",
+  email: "",
   languages: ["Français"],
   otherLanguages: "",
   hasSalesExperience: undefined as unknown as FormValues["hasSalesExperience"],
@@ -59,7 +60,7 @@ function CheckGroup({
             key={opt}
             className="flex cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium transition has-checked:border-ocd-orange has-checked:bg-ocd-cream has-focus-visible:outline-2 has-focus-visible:outline-ocd-orange-dark dark:has-checked:bg-ocd-orange/10"
           >
-            <Checkbox value={opt} className="mt-0 size-4" {...register(name)} />
+            <Checkbox value={opt} className="mt-0" {...register(name)} />
             {opt}
           </label>
         ))}
@@ -75,6 +76,7 @@ export function CandidatureForm() {
   const [error, setError] = useState<string | null>(null);
 
   const {
+    control,
     register,
     handleSubmit,
     watch,
@@ -136,11 +138,15 @@ export function CandidatureForm() {
       </Field>
       <PhoneField
         id="cand-phone"
-        countryRegister={register("phoneCountry")}
+        control={control}
+        countryName="phoneCountry"
         numberRegister={register("phoneNumber")}
         countryError={errors.phoneCountry?.message}
         numberError={errors.phoneNumber?.message}
       />
+      <Field id="cand-email" label="Email" hint="Pour recevoir l'accusé de réception de ta candidature." error={errors.email?.message}>
+        {(p) => <Input {...p} type="email" inputMode="email" autoComplete="email" placeholder="toi@exemple.com" {...register("email")} />}
+      </Field>
 
       <CheckGroup legend="Langues parlées" name="languages" options={LANGUAGES} error={errors.languages?.message} register={register} />
       <Field id="cand-otherLanguages" label="Autres langues" error={errors.otherLanguages?.message}>
@@ -157,7 +163,7 @@ export function CandidatureForm() {
               key={v}
               className="flex cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-medium capitalize has-checked:border-ocd-orange has-checked:bg-ocd-cream has-focus-visible:outline-2 has-focus-visible:outline-ocd-orange-dark dark:has-checked:bg-ocd-orange/10"
             >
-              <input type="radio" value={v} className="accent-ocd-orange-dark" {...register("hasSalesExperience")} />
+              <input type="radio" value={v} className="control-radio" {...register("hasSalesExperience")} />
               {v}
             </label>
           ))}

@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { categories, OTHER_CATEGORY_ID, productCountOptions } from "@/config/categories";
+import { OTHER_CATEGORY_ID } from "@/config/categories";
 import { DEFAULT_COUNTRY_CODE } from "@/config/countries";
-import { CountryOptions, PhoneField } from "@/components/forms/phone-field";
-import { Checkbox, Field, FieldError, Input, Select, Textarea } from "@/components/ui/form-controls";
+import { categoryOptions, countryOptions, productCountSelectOptions } from "@/components/forms/options";
+import { PhoneField } from "@/components/forms/phone-field";
+import { Checkbox, Field, FieldError, Input, Textarea } from "@/components/ui/form-controls";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { createInfoSchema, emptyInfo, type ReservationInfo } from "@/lib/validation/reservation";
 import { useBooking } from "./booking-provider";
 import { StepShell } from "./step-shell";
@@ -35,6 +37,7 @@ export function StepInfo() {
     mode: "onTouched",
   });
   const {
+    control,
     register,
     handleSubmit,
     watch,
@@ -80,15 +83,21 @@ export function StepInfo() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="category" label="Catégorie d'activité" required error={errors.category?.message}>
               {(p) => (
-                <Select {...p} {...register("category")}>
-                  <option value="">Choisis ta catégorie…</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                  <option value={OTHER_CATEGORY_ID}>Autre</option>
-                </Select>
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field }) => (
+                    <SelectMenu
+                      {...p}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      options={categoryOptions}
+                      placeholder="Choisis ta catégorie…"
+                      panelClassName="sm:w-[24rem]"
+                    />
+                  )}
+                />
               )}
             </Field>
             {category === OTHER_CATEGORY_ID && (
@@ -108,14 +117,21 @@ export function StepInfo() {
           </Field>
           <Field id="productCount" label="Nombre de produits à présenter" error={errors.productCount?.message}>
             {(p) => (
-              <Select {...p} {...register("productCount")}>
-                <option value="">Je ne sais pas encore</option>
-                {productCountOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Select>
+              <Controller
+                control={control}
+                name="productCount"
+                render={({ field }) => (
+                  <SelectMenu
+                    {...p}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    options={productCountSelectOptions}
+                    placeholder="Je ne sais pas encore"
+                    clearable
+                  />
+                )}
+              />
             )}
           </Field>
         </FormSection>
@@ -123,7 +139,8 @@ export function StepInfo() {
         <FormSection title="Contact">
           <PhoneField
             id="phoneNumber"
-            countryRegister={register("phoneCountry")}
+            control={control}
+            countryName="phoneCountry"
             numberRegister={register("phoneNumber")}
             countryError={errors.phoneCountry?.message}
             numberError={errors.phoneNumber?.message}
@@ -144,10 +161,22 @@ export function StepInfo() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="country" label="Pays" required error={errors.country?.message}>
                 {(p) => (
-                  <Select {...p} autoComplete="country" {...register("country")}>
-                    <option value="">Choisis ton pays…</option>
-                    <CountryOptions />
-                  </Select>
+                  <Controller
+                    control={control}
+                    name="country"
+                    render={({ field }) => (
+                      <SelectMenu
+                        {...p}
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        options={countryOptions()}
+                        placeholder="Choisis ton pays…"
+                        searchable
+                        searchPlaceholder="Rechercher un pays…"
+                      />
+                    )}
+                  />
                 )}
               </Field>
               <Field id="city" label="Ville" required error={errors.city?.message}>

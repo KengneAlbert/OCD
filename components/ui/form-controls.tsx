@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const controlBase =
-  "w-full rounded-2xl border border-border bg-card px-4 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:border-ocd-orange-dark focus-visible:ring-4 focus-visible:ring-ocd-glow/70 dark:focus-visible:ring-ocd-orange/30 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-ocd-live aria-[invalid=true]:ring-red-100";
+  "w-full rounded-2xl border border-border bg-card px-4 hover:border-foreground/25 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:border-ocd-orange-dark focus-visible:ring-4 focus-visible:ring-ocd-glow/70 dark:focus-visible:ring-ocd-orange/30 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-ocd-live aria-[invalid=true]:ring-red-100";
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, type = "text", ...props }, ref) => (
@@ -22,7 +22,7 @@ Textarea.displayName = "Textarea";
 export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, children, ...props }, ref) => (
     <div className="relative">
-      <select ref={ref} className={cn(controlBase, "h-12 appearance-none pr-10", className)} {...props}>
+      <select ref={ref} className={cn(controlBase, "h-12 cursor-pointer appearance-none pr-10 hover:border-foreground/30", className)} {...props}>
         {children}
       </select>
       <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3.5 size-5 -translate-y-1/2 text-muted-foreground" />
@@ -40,10 +40,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, Omit<React.InputHTMLA
     <input
       ref={ref}
       type="checkbox"
-      className={cn(
-        "mt-0.5 size-5 shrink-0 cursor-pointer rounded-md border-border accent-ocd-orange-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocd-orange-dark",
-        className,
-      )}
+      className={cn("control-check mt-0.5", className)}
       {...props}
     />
   ),

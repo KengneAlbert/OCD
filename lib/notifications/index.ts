@@ -1,20 +1,24 @@
 /**
  * Couche d'abstraction des notifications (côté navigateur).
  *
- * NOTIFICATION_PROVIDER=whatsapp → ouvre WhatsApp avec le message pré-rempli (phase 1)
- * NOTIFICATION_PROVIDER=brevo    → POST /api/reservations → emails Brevo (phase 2)
- * NOTIFICATION_PROVIDER=both     → les deux
+ * Les réservations partent uniquement par email (RESERVATION_PROVIDER = brevo).
+ * Chaque réservation / candidature est TOUJOURS envoyée à l'API, qui
+ * l'enregistre dans Supabase (si configuré) et envoie les emails Brevo
+ * selon NOTIFICATION_PROVIDER :
+ *   whatsapp → ouvre WhatsApp avec le message pré-rempli (phase 1)
+ *   brevo    → emails Brevo uniquement (phase 2)
+ *   both     → les deux
  *
  * ⚠️ Appeler sendReservation / sendCandidature directement dans un gestionnaire
- * de clic : WhatsApp est ouvert AVANT tout `await` pour ne pas être bloqué
- * par le navigateur.
+ * de clic : l'onglet WhatsApp est ouvert AVANT le premier `await` (sinon le
+ * navigateur le bloque), puis redirigé vers wa.me une fois l'API d'accord.
  */
 import { siteConfig } from "@/config/site";
 import { buildCandidatureMessage, buildReservationMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import type { Candidature, NotificationProvider, Reservation, SendResult } from "@/types";
-import { clientProvider, usesEmail, usesWhatsApp } from "./provider";
+import { clientProvider, RESERVATION_PROVIDER, usesEmail, usesWhatsApp } from "./provider";
 
-export { clientProvider, usesEmail, usesWhatsApp };
+export { clientProvider, RESERVATION_PROVIDER, usesEmail, usesWhatsApp };
 
 interface SendOptions {
   provider?: NotificationProvider;
@@ -22,26 +26,40 @@ interface SendOptions {
   honeypot?: string;
 }
 
-function openWhatsApp(url: string): boolean {
-  if (typeof window === "undefined") return false;
-  const win = window.open(url, "_blank");
-  if (!win) return false;
-  win.opener = null;
-  return true;
+interface PostResult {
+  ok: boolean;
+  status: number;
+  error?: string;
+  emailed?: boolean;
+  payUrl?: string;
 }
 
-async function postJson(endpoint: string, body: unknown): Promise<{ ok: boolean; error?: string }> {
+async function postJson(endpoint: string, body: unknown): Promise<PostResult> {
   try {
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    return res.ok ? { ok: true } : { ok: false, error: json.error ?? "L'envoi a échoué. Réessaie dans un instant." };
+    const json = (await res.json().catch(() => ({}))) as { error?: string; emailed?: boolean; payUrl?: string };
+    return {
+      ok: res.ok,
+      status: res.status,
+      emailed: json.emailed,
+      payUrl: typeof json.payUrl === "string" && json.payUrl.startsWith("http") ? json.payUrl : undefined,
+      error: res.ok ? undefined : (json.error ?? "L'envoi a échoué. Réessaie dans un instant."),
+    };
   } catch {
-    return { ok: false, error: "Connexion impossible. Vérifie ta connexion internet et réessaie." };
+    return { ok: false, status: 0, error: "Connexion impossible. Vérifie ta connexion internet et réessaie." };
   }
+}
+
+/** Ouvre un onglet vide tout de suite (geste utilisateur) pour pouvoir y charger WhatsApp ensuite. */
+function preopenTab(): Window | null {
+  if (typeof window === "undefined") return null;
+  const win = window.open("about:blank", "_blank");
+  if (win) win.opener = null;
+  return win;
 }
 
 async function dispatch(
@@ -50,25 +68,38 @@ async function dispatch(
   payload: unknown,
   { provider = clientProvider, honeypot = "" }: SendOptions,
 ): Promise<SendResult> {
-  const result: SendResult = { ok: true };
+  const whatsapp = usesWhatsApp(provider);
+  const tab = whatsapp ? preopenTab() : null;
 
-  if (usesWhatsApp(provider)) {
+  const res = await postJson(endpoint, {
+    ...(payload as object),
+    website: honeypot,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+
+  // Erreur « métier » (créneau pris, données refusées, trop de demandes) : on arrête tout.
+  const blocking = !res.ok && (res.status === 409 || res.status === 422 || res.status === 429);
+  if (blocking || (!whatsapp && !res.ok)) {
+    tab?.close();
+    return { ok: false, error: res.error };
+  }
+
+  const result: SendResult = { ok: true, emailed: res.emailed, payUrl: res.payUrl };
+  if (whatsapp) {
+    // Panne réseau / serveur en mode WhatsApp : la demande part quand même par WhatsApp.
     result.whatsappUrl = buildWhatsAppUrl(siteConfig.whatsappNumber, message);
-    result.whatsappBlocked = !openWhatsApp(result.whatsappUrl);
+    if (tab && !tab.closed) {
+      tab.location.href = result.whatsappUrl;
+      result.whatsappBlocked = false;
+    } else {
+      result.whatsappBlocked = true;
+    }
   }
-
-  if (usesEmail(provider)) {
-    const res = await postJson(endpoint, { ...(payload as object), website: honeypot });
-    result.emailed = res.ok;
-    // En mode "both", WhatsApp reste le canal principal : l'échec email n'est pas bloquant.
-    if (!res.ok && !result.whatsappUrl) return { ok: false, error: res.error };
-  }
-
   return result;
 }
 
 export function sendReservation(reservation: Reservation, options: SendOptions = {}): Promise<SendResult> {
-  return dispatch(buildReservationMessage(reservation), "/api/reservations", reservation, options);
+  return dispatch(buildReservationMessage(reservation), "/api/reservations", reservation, { provider: RESERVATION_PROVIDER, ...options });
 }
 
 export function sendCandidature(candidature: Candidature, options: SendOptions = {}): Promise<SendResult> {

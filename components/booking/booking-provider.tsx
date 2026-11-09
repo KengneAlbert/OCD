@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getPackage } from "@/config/packages";
 import { SUMMARY_STEP, firstInvalidStep, validateStep } from "@/lib/booking";
-import { clientProvider, usesEmail } from "@/lib/notifications/provider";
+import { RESERVATION_PROVIDER, usesEmail } from "@/lib/notifications/provider";
 import { isSlotBookable } from "@/lib/schedule";
 import { STORAGE_KEYS, readSession, removeSession, writeSession } from "@/lib/storage";
 import type { BookingState, LiveType } from "@/types";
@@ -29,7 +29,8 @@ interface BookingContextValue {
 const BookingContext = createContext<BookingContextValue | null>(null);
 
 const initialState: BookingState = { step: 0 };
-const emailRequired = usesEmail(clientProvider);
+// Réservation envoyée par email : l'adresse est obligatoire.
+const emailRequired = usesEmail(RESERVATION_PROVIDER);
 
 function isLiveType(value: string | null): value is LiveType {
   return value === "presentiel" || value === "distance";

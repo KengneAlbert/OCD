@@ -17,6 +17,7 @@ export const candidatureFormSchema = z
     location: z.string().trim().min(2, "Indique ton quartier et ta ville.").max(100, "100 caractères maximum."),
     phoneCountry: phoneCountrySchema,
     phoneNumber: phoneNumberSchema,
+    email: z.union([z.literal(""), z.string().trim().email("Adresse email invalide.")]),
     languages: z.array(z.string()).min(1, "Coche au moins une langue."),
     otherLanguages: z.string().trim().max(100, "100 caractères maximum."),
     hasSalesExperience: z.enum(["oui", "non"], {

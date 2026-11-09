@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Copy, MessageCircleMore } from "lucide-react";
+import { CheckCircle2, Copy, Smartphone } from "lucide-react";
+import { getPackage } from "@/config/packages";
+import { formatPrice } from "@/lib/utils";
 import { m } from "framer-motion";
-import { WhatsAppIcon } from "@/components/shared/icons";
 import { Button } from "@/components/ui/button";
 import { STORAGE_KEYS, readSession, removeSession } from "@/lib/storage";
 import { ReservationRecap } from "./reservation-recap";
@@ -34,7 +35,9 @@ export function ConfirmationView() {
     );
   }
 
-  const { reservation, whatsappUrl, whatsappBlocked, emailed } = data;
+  const { reservation, emailed, payUrl } = data;
+  const payPath = payUrl ? new URL(payUrl).pathname : null;
+  const price = getPackage(reservation.packageId)?.price;
 
   const copy = async () => {
     try {
@@ -59,8 +62,10 @@ export function ConfirmationView() {
           <CheckCircle2 className="mx-auto size-16 text-whatsapp" aria-hidden />
           <h1 className="text-3xl font-extrabold sm:text-4xl">Ta demande est envoyée !</h1>
           <p className="mx-auto max-w-lg text-lg text-muted-foreground">
-            L&apos;équipe OCD Live te confirme le créneau sur WhatsApp.
-            {emailed && " Un email de confirmation t'a aussi été envoyé."}
+            {emailed
+              ? `Un email de confirmation vient de t'être envoyé à ${reservation.info.email}.`
+              : "L'équipe OCD Live a bien reçu ta demande."}{" "}
+            On te confirme le créneau très vite.
           </p>
           <div className="mx-auto inline-flex items-center gap-3 rounded-2xl bg-ocd-black px-5 py-3 text-white dark:bg-white/10">
             <span className="text-sm text-white/70">Référence</span>
@@ -75,27 +80,22 @@ export function ConfirmationView() {
         </div>
       </m.div>
 
-      {whatsappUrl && (
-        <div className="rounded-3xl border border-whatsapp/30 bg-green-50 p-5 sm:p-6 dark:bg-green-950/30">
-          <p className="mb-4 flex items-start gap-2 text-sm">
-            <MessageCircleMore className="mt-0.5 size-5 shrink-0 text-whatsapp" aria-hidden />
-            <span>
-              {whatsappBlocked ? (
-                <strong>WhatsApp ne s&apos;est pas ouvert automatiquement. Appuie sur le bouton ci-dessous pour envoyer ton message.</strong>
-              ) : (
-                <>
-                  N&apos;oublie pas d&apos;appuyer sur <strong>« Envoyer »</strong> dans WhatsApp. Si la fenêtre ne s&apos;est pas ouverte, utilise
-                  le bouton ci-dessous.
-                </>
-              )}
-            </span>
-          </p>
-          <Button asChild variant="whatsapp" size="lg" className="w-full whitespace-normal">
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-              <WhatsAppIcon />
-              Ouvrir WhatsApp avec mon message
-            </a>
-          </Button>
+      {payPath && (
+        <div className="flex flex-col gap-5 rounded-[2rem] bg-ocd-black p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8 dark:bg-card">
+          <div>
+            <p className="font-mono text-[11px] tracking-[0.2em] text-white/50 uppercase">Étape suivante</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight">
+              Bloque ton créneau <span className="accent font-normal text-ocd-orange">maintenant.</span>
+            </p>
+            <p className="mt-1 text-sm text-white/65">Paiement Mobile Money en 1 minute : T-Money, Moov Money, Orange, MTN, Wave…</p>
+          </div>
+          <Link
+            href={payPath}
+            className="inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-full bg-ocd-orange px-7 font-semibold text-ocd-black transition hover:bg-white"
+          >
+            <Smartphone className="size-5" aria-hidden />
+            {price ? `Payer ${formatPrice(price)}` : "Payer maintenant"}
+          </Link>
         </div>
       )}
 
@@ -106,7 +106,7 @@ export function ConfirmationView() {
         <ol className="space-y-3">
           {[
             "L'équipe vérifie la disponibilité de ton créneau.",
-            "Elle te confirme le créneau et les modalités de paiement sur WhatsApp.",
+            "Elle te confirme le créneau et les modalités de paiement par email et par téléphone.",
             "Ton créneau est bloqué après paiement. Prépare ton live !",
           ].map((text, i) => (
             <li key={text} className="flex gap-3">
