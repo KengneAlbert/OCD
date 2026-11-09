@@ -5,6 +5,8 @@ import { packages } from "@/config/packages";
 import { PackageCard } from "@/components/packages/package-card";
 import { useBooking } from "./booking-provider";
 import { StepShell } from "./step-shell";
+import { PAYMENT_SUMMARY } from "@/config/payment-methods";
+import { PaymentLogos } from "@/components/payments/payment-logos";
 
 export function StepPackage() {
   const { state, update } = useBooking();
@@ -21,13 +23,14 @@ export function StepPackage() {
       title="Choisis ton package"
       description={
         <>
-          Prix en FCFA, payé en ligne par Mobile Money au moment de réserver.{" "}
+          Prix en FCFA, payé en ligne au moment de réserver ({PAYMENT_SUMMARY}).{" "}
           <Link href="/packages#comparatif" target="_blank" className="font-medium text-accent-text underline underline-offset-4">
             Comparer les packages
           </Link>
         </>
       }
     >
+      <PaymentLogos size="sm" className="justify-start" />
       <fieldset>
         <legend className="sr-only">Package</legend>
         <div className="grid gap-4 md:grid-cols-2">

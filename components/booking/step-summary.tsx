@@ -9,18 +9,10 @@ import { formatPrice } from "@/lib/utils";
 import { buildReservation, firstInvalidStep } from "@/lib/booking";
 import { sendReservation } from "@/lib/notifications";
 import { generateReference } from "@/lib/reference";
-import { STORAGE_KEYS, writeSession } from "@/lib/storage";
 import { useBooking } from "./booking-provider";
 import { ReservationRecap } from "./reservation-recap";
 import { StepShell } from "./step-shell";
-
-export interface LastReservation {
-  reservation: NonNullable<ReturnType<typeof buildReservation>>;
-  whatsappUrl?: string;
-  whatsappBlocked?: boolean;
-  emailed?: boolean;
-  payUrl?: string;
-}
+import { PAYMENT_SUMMARY } from "@/config/payment-methods";
 
 export function StepSummary() {
   const router = useRouter();
@@ -56,8 +48,6 @@ export function StepSummary() {
       setError("Le paiement n'a pas pu être préparé. Réessaie dans un instant.");
       return;
     }
-    const last: LastReservation = { reservation, emailed: result.emailed, payUrl: result.payUrl };
-    writeSession(STORAGE_KEYS.lastReservation, last);
     // Pas de réservation sans paiement : direction la page de paiement, qui ouvre Mobile Money tout de suite.
     router.push(`${new URL(result.payUrl).pathname}?go=1`);
   };
@@ -97,7 +87,7 @@ export function StepSummary() {
         </Button>
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
           <Lock className="mt-0.5 size-4 shrink-0 text-whatsapp" aria-hidden />
-          {`Ta réservation est validée dès le paiement Mobile Money (T-Money, Moov Money, Orange, MTN, Wave…). Le créneau est bloqué 20 minutes pour te laisser le temps de payer. La confirmation arrive par email à ${reservation.info.email}.`}
+          {`Ta réservation est validée dès le paiement : ${PAYMENT_SUMMARY}. Le créneau est bloqué 20 minutes pour te laisser le temps de payer. La confirmation arrive par email à ${reservation.info.email}.`}
         </p>
       </div>
     </StepShell>

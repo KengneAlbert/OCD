@@ -17,10 +17,19 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDateFr, parseDateKey, toDateKey } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 
+/** Indication sous le numéro du jour (jour complet, peu de créneaux libres). */
+export interface DayHint {
+  label: string;
+  /** Version courte pour les petits écrans. */
+  short?: string;
+  tone: "few" | "full";
+}
+
 interface BookingCalendarProps {
   value?: string;
   onChange: (date: string) => void;
   isDisabled: (date: string) => boolean;
+  getHint?: (date: string) => DayHint | undefined;
   minDate: string;
   maxDate: string;
 }
@@ -31,7 +40,7 @@ const WEEK = { weekStartsOn: 1 as const };
  * Calendrier mensuel en français, navigable au clavier (motif ARIA « grid ») :
  * flèches = jour/semaine, Début/Fin = début/fin de semaine, Page préc./suiv. = mois.
  */
-export function BookingCalendar({ value, onChange, isDisabled, minDate, maxDate }: BookingCalendarProps) {
+export function BookingCalendar({ value, onChange, isDisabled, getHint, minDate, maxDate }: BookingCalendarProps) {
   const captionId = useId();
   const firstEnabled = useMemo(() => {
     let d = parseDateKey(minDate);
@@ -159,6 +168,8 @@ export function BookingCalendar({ value, onChange, isDisabled, minDate, maxDate 
                 if (!isSameMonth(day, month)) return <td key={key} role="gridcell" aria-hidden />;
                 const disabled = !inRange(key) || isDisabled(key);
                 const selected = key === value;
+                const hint = inRange(key) ? getHint?.(key) : undefined;
+                const hintText = hint?.tone === "full" ? ", complet" : hint ? `, ${hint.label} créneaux libres` : "";
                 return (
                   <td key={key} role="gridcell" aria-selected={selected}>
                     <button
@@ -169,20 +180,40 @@ export function BookingCalendar({ value, onChange, isDisabled, minDate, maxDate 
                       }}
                       tabIndex={key === tabbable ? 0 : -1}
                       aria-disabled={disabled || undefined}
-                      aria-label={`${formatDateFr(key)}${disabled ? ", indisponible" : ""}${selected ? ", sélectionnée" : ""}`}
+                      aria-label={`${formatDateFr(key)}${hintText || (disabled ? ", indisponible" : "")}${selected ? ", sélectionnée" : ""}`}
                       onClick={() => {
                         setFocused(key);
                         if (!disabled) onChange(key);
                       }}
                       onKeyDown={(e) => onKeyDown(e, day)}
                       className={cn(
-                        "flex aspect-square w-full items-center justify-center rounded-xl text-sm font-semibold transition sm:text-base",
-                        disabled && "cursor-not-allowed text-muted-foreground/50 line-through decoration-1",
+                        "relative flex aspect-square w-full flex-col items-center justify-center rounded-xl text-sm font-semibold transition sm:text-base",
+                        disabled && hint?.tone !== "full" && "cursor-not-allowed text-muted-foreground/50 line-through decoration-1",
+                        hint?.tone === "full" && "cursor-not-allowed bg-muted/60 text-muted-foreground/60",
                         !disabled && !selected && "bg-ocd-cream hover:bg-ocd-glow/60 dark:bg-white/5 dark:hover:bg-ocd-orange/20",
                         selected && "bg-ocd-orange text-ocd-black shadow-[0_0_0_3px_rgb(255_217_160),0_8px_20px_-6px_rgb(232_121_43/0.7)]",
                       )}
                     >
-                      {format(day, "d")}
+                      <span className={cn(hint && "-mt-1.5 sm:-mt-2")}>{format(day, "d")}</span>
+                      {hint && (
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "absolute inset-x-0.5 bottom-1 truncate text-center leading-none font-semibold no-underline",
+                            "text-[8px] sm:bottom-1.5 sm:text-[10px]",
+                            hint.tone === "full" ? "text-muted-foreground" : selected ? "text-ocd-black" : "text-ocd-orange-dark dark:text-ocd-orange",
+                          )}
+                        >
+                          {hint.tone === "few" && hint.short ? (
+                            <>
+                              <span className="sm:hidden">{hint.short} dispo</span>
+                              <span className="hidden sm:inline">{hint.label}</span>
+                            </>
+                          ) : (
+                            hint.label
+                          )}
+                        </span>
+                      )}
                     </button>
                   </td>
                 );
@@ -200,7 +231,13 @@ export function BookingCalendar({ value, onChange, isDisabled, minDate, maxDate 
           <span aria-hidden className="size-3 rounded bg-ocd-orange" /> Ta date
         </span>
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="size-3 rounded bg-transparent ring-1 ring-border" /> Fermé / complet
+          <span aria-hidden className="size-3 rounded bg-transparent ring-1 ring-border" /> Fermé
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className="size-3 rounded bg-muted ring-1 ring-border" /> Complet
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className="text-[10px] font-bold text-ocd-orange-dark dark:text-ocd-orange">2</span> Derniers créneaux
         </span>
       </div>
     </div>

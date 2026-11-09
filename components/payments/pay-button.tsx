@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, Loader2, Lock, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PAYMENT_SUMMARY } from "@/config/payment-methods";
+import { PaymentLogos } from "./payment-logos";
 
 const INLINE_SRC = "https://pay.swinmo.shop/v1/inline.js";
 
@@ -180,8 +182,9 @@ export function PayButton({
           {error}
         </p>
       )}
-      <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Lock className="size-3.5" aria-hidden /> Paiement sécurisé par Swinmo Pay · T-Money, Moov Money, Orange, MTN, Wave…
+      <PaymentLogos className="pt-1" />
+      <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+        <Lock className="size-3.5 shrink-0" aria-hidden /> Paiement sécurisé par Swinmo Pay · {PAYMENT_SUMMARY}
       </p>
     </div>
   );

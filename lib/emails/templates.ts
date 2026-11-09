@@ -14,6 +14,7 @@ import { formatPrice } from "@/lib/utils";
 import { formatPhone } from "@/lib/whatsapp";
 import type { Candidature, Reservation } from "@/types";
 import { button, C, callout, detailsCard, esc, heading, layout, paragraph, pill, small, steps } from "./layout";
+import { PAYMENT_SUMMARY } from "@/config/payment-methods";
 
 export interface EmailContent {
   subject: string;
@@ -256,7 +257,7 @@ export function reservationReceivedEmail(v: ReservationView): EmailContent {
       ),
       detailsCard(rows, "Ta réservation"),
       v.payUrl
-        ? callout(`<strong>Bloque ton créneau dès maintenant :</strong> règle ${esc(v.priceLabel)} par Mobile Money (T-Money, Moov Money, Orange, MTN, Wave…). Ton créneau est réservé pour toi dès réception du paiement.`, "dark") +
+        ? callout(`<strong>Bloque ton créneau dès maintenant :</strong> règle ${esc(v.priceLabel)} par ${esc(PAYMENT_SUMMARY)}. Ton créneau est réservé pour toi dès réception du paiement.`, "dark") +
           button(`Payer ${v.priceLabel}`, v.payUrl)
         : "",
       steps(
@@ -279,7 +280,7 @@ export function reservationReceivedEmail(v: ReservationView): EmailContent {
     textRows(rows),
     "",
     "La suite : 1) confirmation du créneau, 2) paiement du package, 3) préparation de ton live.",
-    v.payUrl && `Payer maintenant par Mobile Money : ${v.payUrl}`,
+    v.payUrl && `Payer maintenant : ${v.payUrl}`,
     `WhatsApp : ${waLink()}`,
     "",
     signature,
@@ -338,7 +339,7 @@ export function reservationConfirmedEmail(v: ReservationView, note?: string): Em
       note ? callout(`<strong>Message de l'équipe :</strong> ${esc(note)}`) : "",
       callout(
         v.payUrl
-          ? `<strong>Paiement :</strong> ${esc(v.priceLabel)} à régler pour bloquer définitivement ton créneau. Paie en 1 minute par Mobile Money (T-Money, Moov Money, Orange, MTN, Wave…).`
+          ? `<strong>Paiement :</strong> ${esc(v.priceLabel)} à régler pour bloquer définitivement ton créneau. Paie en 1 minute par ${esc(PAYMENT_SUMMARY)}.`
           : `<strong>Paiement :</strong> ${esc(v.priceLabel)} à régler pour bloquer définitivement ton créneau. L'équipe t'indique le moyen de paiement.`,
         "dark",
       ),
@@ -359,7 +360,7 @@ export function reservationConfirmedEmail(v: ReservationView, note?: string): Em
     note && `\nMessage de l'équipe : ${note}`,
     "",
     `Paiement : ${v.priceLabel} pour bloquer définitivement ton créneau.`,
-    v.payUrl && `Payer par Mobile Money : ${v.payUrl}`,
+    v.payUrl && `Payer en ligne : ${v.payUrl}`,
     "",
     "Prépare ton live :",
     ...prepareChecklist.slice(0, 4).map((c) => `- ${c.title} : ${c.text}`),
@@ -378,6 +379,7 @@ export function reservationPaidEmail(v: ReservationView): EmailContent {
       heading(`Merci ${v.firstName}, ton créneau est`, "bloqué."),
       paragraph("On a bien reçu ton paiement. Il ne te reste plus qu'à préparer tes produits : on s'occupe du reste."),
       detailsCard(bookingRows(v), "Ton live"),
+      v.payUrl ? button("📅 Ajouter à mon agenda", v.payUrl.replace("/paiement/", "/api/agenda/"), "dark") : "",
       steps(prepareChecklist, "Ta checklist"),
       small(`Référence : ${esc(v.reference)}.`),
     ].join(""),
@@ -386,7 +388,7 @@ export function reservationPaidEmail(v: ReservationView): EmailContent {
     subject: `💳 Paiement reçu · ton live du ${v.dateLabel} est bloqué`,
 
     html,
-    text: textBlock([`Merci ${v.firstName}, paiement reçu : ton créneau est bloqué.`, "", textRows(bookingRows(v)), "", signature]),
+    text: textBlock([`Merci ${v.firstName}, paiement reçu : ton créneau est bloqué.`, "", textRows(bookingRows(v)), v.payUrl && `\nAjouter à mon agenda : ${v.payUrl.replace("/paiement/", "/api/agenda/")}`, "", signature]),
   };
 }
 

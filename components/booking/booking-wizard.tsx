@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SUMMARY_STEP } from "@/lib/booking";
 import { useBooking } from "./booking-provider";
+import { MobileRecap } from "./mobile-recap";
 import { Stepper } from "./stepper";
 import { StepDate } from "./step-date";
 import { INFO_FORM_ID, StepInfo } from "./step-info";
@@ -75,6 +76,7 @@ export function BookingWizard() {
 
       {/* Barre d'actions : collée en bas de l'écran sur mobile. */}
       <div className="sticky bottom-0 z-20 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <MobileRecap />
         <div className="flex items-center gap-3">
           {state.step > 0 && (
             <Button variant="outline" onClick={back} className="shrink-0">

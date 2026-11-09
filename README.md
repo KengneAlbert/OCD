@@ -171,7 +171,7 @@ Protections de l'API : validation zod côté serveur, vérification du créneau,
 ```
 Réservation enregistrée → lien /paiement/<jeton secret> (page de confirmation + emails)
   └─ « Payer » → POST /api/payments/session  (montant lu en base, jamais dans le navigateur)
-       └─ modale Swinmo (inline.js) : T-Money, Moov Money, Orange, MTN, Wave…
+       └─ modale Swinmo (inline.js) : Mobile Money (18 pays) ou carte Visa / Mastercard (config/payment-methods.ts)
             ├─ onSuccess → POST /api/payments/confirm → GET /v1/charges/:id chez Swinmo
             └─ webhook charge.succeeded / charge.failed → POST /api/payments/webhook (signature HMAC vérifiée)
                  └─ applyCharge() : contrôle montant + devise + référence, une seule fois

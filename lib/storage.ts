@@ -1,7 +1,6 @@
 /** Accès sessionStorage tolérant (navigation privée, stockage bloqué…). */
 export const STORAGE_KEYS = {
   booking: "ocd-booking-v1",
-  lastReservation: "ocd-last-reservation-v1",
 } as const;
 
 export function readSession<T>(key: string): T | null {

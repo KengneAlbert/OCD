@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Clock, XCircle } from "lucide-react";
 import { Chyron } from "@/components/brand/broadcast";
 import { PayButton } from "@/components/payments/pay-button";
+import { AfterPayment } from "@/components/payments/after-payment";
+import { HoldCountdown } from "@/components/payments/hold-countdown";
 import { HOLD_MINUTES, holdExpiresAt } from "@/lib/db/holds";
 import { getPayState, getReservationByToken } from "@/lib/db/payments";
 import { isPaymentEnabled } from "@/lib/payments/swinmo";
@@ -32,7 +34,6 @@ export default async function PaymentPage({
   const price = formatPrice(r.package_price);
   // Réservation pas encore payée : le créneau n'est bloqué que pendant HOLD_MINUTES.
   const holding = state === "payable" && r.status === "nouvelle";
-  const holdUntil = holdExpiresAt(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
 
   const rows: [string, string][] = [
     ["Référence", r.reference],
@@ -47,7 +48,7 @@ export default async function PaymentPage({
     <div className="relative">
       <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-72 bg-gradient-to-b from-ocd-cream to-transparent dark:from-white/[0.03]" />
       <div className="mx-auto max-w-xl px-4 pt-10 pb-20 sm:pt-14">
-        <Chyron>Paiement · Mobile Money</Chyron>
+        <Chyron>Paiement · Mobile Money ou carte</Chyron>
         <h1 className="mt-4 text-[clamp(2.4rem,7vw,4rem)] leading-[0.95] font-semibold tracking-tight">
           {state === "paid" ? (
             <>
@@ -77,20 +78,12 @@ export default async function PaymentPage({
             ))}
           </dl>
           <div className="flex items-baseline justify-between bg-ocd-black px-6 py-5 text-white dark:bg-white/5">
-            <span className="text-sm text-white/70">Total à payer</span>
+            <span className="text-sm text-white/70">{state === "paid" ? "Total payé" : "Total à payer"}</span>
             <span className="text-3xl font-semibold tracking-tight text-ocd-orange">{price}</span>
           </div>
         </div>
 
-        {holding && (
-          <p className="mt-6 flex items-start gap-3 rounded-2xl bg-ocd-orange/10 px-4 py-3 text-sm font-medium">
-            <Clock className="mt-0.5 size-4 shrink-0 text-ocd-orange-dark" aria-hidden />
-            <span>
-              Créneau bloqué pour toi jusqu&apos;à <strong>{holdUntil}</strong> (heure de Lomé). Sans paiement d&apos;ici là, il est libéré
-              automatiquement ({HOLD_MINUTES} min).
-            </span>
-          </p>
-        )}
+        {holding && <HoldCountdown expiresAt={holdExpiresAt(r.created_at).toISOString()} totalMinutes={HOLD_MINUTES} />}
 
         <div className="mt-8">
           {state === "expired" ? (
@@ -106,11 +99,13 @@ export default async function PaymentPage({
               </Link>
             </div>
           ) : state === "paid" ? (
-            <div role="status" className="rounded-3xl bg-emerald-500/10 p-6 text-center">
-              <CheckCircle2 className="mx-auto size-12 text-emerald-600" aria-hidden />
-              <p className="mt-3 text-xl font-semibold">Paiement reçu</p>
-              <p className="mt-1 text-muted-foreground">On se retrouve le jour J. Prépare bien tes produits !</p>
-            </div>
+            <AfterPayment
+              token={token}
+              firstName={r.full_name.split(" ")[0] ?? r.full_name}
+              liveType={r.live_type}
+              slotStart={r.slot_start}
+              reference={r.reference}
+            />
           ) : state === "closed" ? (
             <div role="status" className="rounded-3xl bg-muted p-6 text-center">
               <XCircle className="mx-auto size-12 text-muted-foreground" aria-hidden />

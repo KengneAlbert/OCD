@@ -13,11 +13,10 @@ import { faq, prepareChecklist } from "@/config/content";
 import { packages } from "@/config/packages";
 import { cn, formatPrice } from "@/lib/utils";
 
-/* ─── Bandeaux croisés ─────────────────────────────────────────────────── */
+/* ─── Bandeau des villes ──────────────────────────────────────────────── */
 
 export function BigMarquee() {
   const cities = ["En direct", "Lomé", "Abidjan", "Dakar", "Douala", "Cotonou", "Kinshasa", "Paris", "Bruxelles"];
-  const shouts = ["Réserve ton live", "1er décembre", "Studio à Lomé", "Partout en Afrique", "Vends plus", "Passe en direct"];
   return (
     <div className="relative py-10 sm:py-16" aria-hidden>
       <div className="relative z-10 -mx-4 -rotate-2 bg-ocd-orange py-4 text-ocd-black shadow-[0_20px_40px_-20px_rgb(232_121_43/0.7)] sm:py-6">
@@ -26,16 +25,6 @@ export function BigMarquee() {
             <span key={w} className="flex items-center gap-8 pr-8 sm:gap-12 sm:pr-12">
               <span className={i % 2 ? "accent font-normal" : ""}>{w}</span>
               <span className="size-3 rounded-full bg-ocd-black sm:size-4" />
-            </span>
-          ))}
-        </Marquee>
-      </div>
-      <div className="absolute inset-x-0 top-1/2 z-20 -mx-4 -translate-y-1/2 rotate-[2.5deg] bg-ocd-black py-3 text-white dark:bg-white dark:text-ocd-black">
-        <Marquee reverse speed="fast" className="font-mono text-sm tracking-[0.25em] uppercase">
-          {shouts.map((w) => (
-            <span key={w} className="flex items-center gap-6 pr-6">
-              {w}
-              <span className="text-ocd-orange">✦</span>
             </span>
           ))}
         </Marquee>

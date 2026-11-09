@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
   },
+  // Ancienne page de confirmation (avant « réserver = payer ») : la suite se passe sur /paiement/[token].
+  async redirects() {
+    return [{ source: "/confirmation", destination: "/reserver", permanent: true }];
+  },
   async headers() {
     return [
       {

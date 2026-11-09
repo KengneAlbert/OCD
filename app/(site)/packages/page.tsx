@@ -6,6 +6,7 @@ import { ComparisonTable } from "@/components/packages/comparison-table";
 import { PackageCard } from "@/components/packages/package-card";
 import { Button } from "@/components/ui/button";
 import { packages } from "@/config/packages";
+import { PAYMENT_SUMMARY } from "@/config/payment-methods";
 
 export const metadata: Metadata = {
   title: "Packages et prix",
@@ -31,7 +32,7 @@ export default function PackagesPage() {
         </div>
         <p className="mt-8 flex items-start justify-center gap-2 text-center text-sm text-muted-foreground">
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Prix en FCFA, à régler après confirmation de ton créneau par l&apos;équipe (Mobile Money, espèces ou virement).
+          Prix en FCFA, payés en ligne au moment de réserver : {PAYMENT_SUMMARY}.
         </p>
       </Section>
 

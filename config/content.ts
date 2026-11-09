@@ -1,3 +1,4 @@
+import { PAYMENT_DETAILS, PAYMENT_SUMMARY } from "@/config/payment-methods";
 import type { FaqItem } from "@/types";
 
 /** FAQ complète (page /faq). Les 4 premières apparaissent sur l'accueil. */
@@ -30,7 +31,7 @@ export const faq: FaqItem[] = [
   {
     question: "Comment est confirmé mon créneau ?",
     answer:
-      "Ta réservation est validée au moment du paiement en ligne. Après le choix de ton créneau, tu paies ton package par Mobile Money (le créneau est bloqué 20 minutes pour ça) et tu reçois aussitôt la confirmation par email avec ta référence. Sans paiement, aucune réservation n'est enregistrée.",
+      `Ta réservation est validée au moment du paiement en ligne. Après le choix de ton créneau, tu paies ton package par ${PAYMENT_SUMMARY} (le créneau est bloqué 20 minutes pour ça) et tu reçois aussitôt la confirmation par email avec ta référence. Sans paiement, aucune réservation n'est enregistrée.`,
   },
   {
     question: "Puis-je reporter mon live ?",
@@ -40,7 +41,7 @@ export const faq: FaqItem[] = [
   {
     question: "Quels sont les modes de paiement ?",
     answer:
-      "Le paiement se fait en ligne, au moment de réserver, par Mobile Money : T-Money et Moov Money au Togo, et MTN Mobile Money, Orange Money ou Wave dans les autres pays. C'est rapide et sécurisé (Swinmo Pay).",
+      PAYMENT_DETAILS,
   },
   {
     question: "Faut-il beaucoup d'abonnés pour réserver ?",

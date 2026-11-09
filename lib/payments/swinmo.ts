@@ -156,7 +156,18 @@ const OPERATOR_LABELS: Record<string, string> = {
   DJAMO: "Djamo",
   MPESA: "M-Pesa",
   FREE: "Free Money",
-  EXPRESSO: "E-Money",
+  EXPRESSO: "Expresso",
+  TELECEL: "Telecel Cash",
+  AIRTELTIGO: "AirtelTigo Money",
+  MOBICASH: "Mobi Cash",
+  WIZALL: "Wizall Money",
+  AFRIMONEY: "Afrimoney",
+  TIGO: "Tigo Pesa",
+  HALOPESA: "HaloPesa",
+  EZYPESA: "EzyPesa",
+  TTCL: "TTCL",
+  VODACOM: "Vodacom M-Pesa",
+  CARD: "Carte bancaire",
 };
 export const operatorLabel = (key?: string | null) => (key ? (OPERATOR_LABELS[key.toUpperCase()] ?? key) : "Mobile Money");
 

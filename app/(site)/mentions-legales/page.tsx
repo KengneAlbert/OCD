@@ -4,6 +4,7 @@ import { PageHeader, Section } from "@/components/layout/page-header";
 import { Prose } from "@/components/shared/prose";
 import { bookingConditions, forbiddenContent } from "@/config/content";
 import { siteConfig } from "@/config/site";
+import { PAYMENT_SUMMARY } from "@/config/payment-methods";
 
 export const metadata: Metadata = {
   title: "Mentions légales et conditions de réservation",
@@ -60,7 +61,8 @@ export default function MentionsLegalesPage() {
           <h3>Prix et paiement</h3>
           <p>
             Les prix sont indiqués en francs CFA (FCFA) sur la page <Link href="/packages">Packages</Link>. Le paiement s&apos;effectue
-            par Mobile Money, en espèces au studio ou par virement, selon les modalités communiquées par l&apos;équipe.
+            en ligne au moment de la réservation, via Swinmo Pay : {PAYMENT_SUMMARY}. La réservation n&apos;est validée qu&apos;après
+            paiement.
           </p>
           <h3>Report et annulation</h3>
           <p>
