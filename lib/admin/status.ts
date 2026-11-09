@@ -1,6 +1,10 @@
 /** Statuts et libellés partagés entre l'admin, l'API et les emails. */
 
-export const RESERVATION_STATUSES = ["nouvelle", "confirmee", "payee", "realisee", "annulee", "absente"] as const;
+export const RESERVATION_STATUSES = ["nouvelle", "confirmee", "payee", "realisee", "annulee", "absente", "expiree"] as const;
+/** Pas de réservation sans paiement : ces statuts ne sont pas des réservations (masqués par défaut dans l'admin). */
+export const UNPAID_ATTEMPT_STATUSES = ["nouvelle", "expiree"] as const satisfies readonly ReservationStatus[];
+/** Statuts qu'un membre de l'équipe peut choisir à la main. */
+export const MANUAL_RESERVATION_STATUSES = ["confirmee", "payee", "realisee", "annulee", "absente"] as const satisfies readonly ReservationStatus[];
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 
 export const CANDIDATURE_STATUSES = ["nouvelle", "en_revue", "entretien", "retenue", "refusee"] as const;
@@ -9,12 +13,13 @@ export type CandidatureStatus = (typeof CANDIDATURE_STATUSES)[number];
 type Tone = "orange" | "blue" | "green" | "violet" | "gray" | "red";
 
 export const reservationStatusMeta: Record<ReservationStatus, { label: string; tone: Tone; hint: string }> = {
-  nouvelle: { label: "Nouvelle", tone: "orange", hint: "À traiter : vérifier le créneau et confirmer au client." },
-  confirmee: { label: "Confirmée", tone: "blue", hint: "Créneau confirmé, en attente du paiement." },
-  payee: { label: "Payée", tone: "violet", hint: "Paiement reçu, le live est calé." },
+  nouvelle: { label: "Attente paiement", tone: "gray", hint: "Créneau bloqué 20 min le temps du paiement, puis libéré automatiquement." },
+  confirmee: { label: "Confirmée", tone: "blue", hint: "Créneau confirmé à la main par l'équipe (paiement hors ligne)." },
+  payee: { label: "Payée", tone: "orange", hint: "Réservation payée : préparer le live." },
   realisee: { label: "Réalisée", tone: "green", hint: "Le live a eu lieu." },
   annulee: { label: "Annulée", tone: "gray", hint: "Le créneau est libéré." },
   absente: { label: "Absent·e", tone: "red", hint: "Le client ne s'est pas présenté." },
+  expiree: { label: "Non payée", tone: "gray", hint: "Tentative jamais payée : ce n'est pas une réservation, le créneau est libre." },
 };
 
 export const candidatureStatusMeta: Record<CandidatureStatus, { label: string; tone: Tone; hint: string }> = {

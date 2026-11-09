@@ -30,6 +30,7 @@ import {
   candidatureStatusMeta,
   isCandidatureStatus,
   isReservationStatus,
+  MANUAL_RESERVATION_STATUSES,
   reservationStatusMeta,
   type ReservationStatus,
 } from "./status";
@@ -85,7 +86,9 @@ export async function updateReservationStatusAction(_: ActionState, formData: Fo
   const status = formData.get("status");
   const notify = formData.get("notify") === "on";
   const note = String(formData.get("note") ?? "").trim().slice(0, 500) || undefined;
-  if (!isReservationStatus(status)) return { ok: false, message: "Statut invalide." };
+  if (!isReservationStatus(status) || !(MANUAL_RESERVATION_STATUSES as readonly string[]).includes(status)) {
+    return { ok: false, message: "Statut invalide." };
+  }
 
   const row = await getReservation(id);
   if (!row) return { ok: false, message: "Réservation introuvable." };

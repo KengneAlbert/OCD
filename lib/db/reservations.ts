@@ -9,6 +9,7 @@ import { getServiceClient } from "@/lib/supabase/admin";
 import { digitsOnly } from "@/lib/utils";
 import type { Candidature, Reservation } from "@/types";
 import { logActivity } from "./activity";
+import { releaseExpiredHolds } from "./holds";
 import type { CandidatureRow, ReservationRow } from "./types";
 
 export const hashIp = (ip: string) => createHash("sha256").update(`${ip}:${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`).digest("hex").slice(0, 32);
@@ -17,7 +18,8 @@ export const toE164 = (country: string, number: string) => `${getCountry(country
 
 /* ─── Réservations ─────────────────────────────────────────────────────── */
 
-export type InsertResult = { ok: true; id: string; payToken?: string } | { ok: false; reason: "slot_taken" | "duplicate" | "error"; message?: string };
+export type InsertResult = { ok: true; id: string; payToken?: string } | { ok: false; reason: "slot_taken" | "error"; message?: string }
+  | { ok: false; reason: "duplicate"; payToken?: string };
 
 export async function insertReservation(
   r: Reservation,
@@ -25,6 +27,8 @@ export async function insertReservation(
 ): Promise<InsertResult | null> {
   const db = getServiceClient();
   if (!db) return null;
+  // Libère d'abord les créneaux bloqués mais jamais payés.
+  await releaseExpiredHolds();
   const pkg = getPackage(r.packageId);
   const i = r.info;
   const { data, error } = await db
@@ -67,7 +71,10 @@ export async function insertReservation(
   if (error) {
     // 23505 = violation d'unicité : créneau déjà pris ou référence en double.
     if (error.code === "23505") {
-      return { ok: false, reason: error.message.includes("slot") ? "slot_taken" : "duplicate" };
+      if (error.message.includes("slot")) return { ok: false, reason: "slot_taken" };
+      // Même référence renvoyée (double clic, réseau) : on redonne le lien de paiement existant.
+      const { data: existing } = await db.from("reservations").select("pay_token, status").eq("reference", r.reference).maybeSingle();
+      return { ok: false, reason: "duplicate", payToken: existing?.status === "nouvelle" ? (existing.pay_token as string) : undefined };
     }
     console.error("[reservations.insert]", error.message);
     return { ok: false, reason: "error", message: error.message };
@@ -77,23 +84,24 @@ export async function insertReservation(
     entityType: "reservation",
     entityId: data.id,
     action: "created",
-    message: `Réservation ${r.reference} créée depuis le site (${pkg?.name ?? r.packageId}).`,
+    message: `Réservation ${r.reference} créée depuis le site (${pkg?.name ?? r.packageId}) · créneau bloqué en attente du paiement.`,
     meta: { channel: meta.channel },
     actor: i.fullName,
   });
   return { ok: true, id: data.id as string, payToken: (data as { pay_token?: string }).pay_token };
 }
 
-/** Créneaux déjà réservés (hors annulations) entre deux dates incluses. */
+/** Créneaux pris (payés ou bloqués le temps du paiement) entre deux dates incluses. */
 export async function getTakenSlots(from: string, to: string): Promise<{ date: string; slotStart: string }[]> {
   const db = getServiceClient();
   if (!db) return [];
+  await releaseExpiredHolds();
   const { data, error } = await db
     .from("reservations")
     .select("live_date, slot_start")
     .gte("live_date", from)
     .lte("live_date", to)
-    .neq("status", "annulee");
+    .not("status", "in", "(annulee,expiree)");
   if (error) {
     console.error("[reservations.taken]", error.message);
     return [];

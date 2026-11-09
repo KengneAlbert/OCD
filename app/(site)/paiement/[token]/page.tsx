@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Chyron } from "@/components/brand/broadcast";
 import { PayButton } from "@/components/payments/pay-button";
+import { HOLD_MINUTES, holdExpiresAt } from "@/lib/db/holds";
 import { getPayState, getReservationByToken } from "@/lib/db/payments";
 import { isPaymentEnabled } from "@/lib/payments/swinmo";
 import { formatDateFr, formatSlotFr } from "@/lib/schedule";
@@ -16,13 +17,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function PaymentPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+export default async function PaymentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ go?: string }>;
+}) {
+  const [{ token }, { go }] = await Promise.all([params, searchParams]);
   const r = await getReservationByToken(token);
   if (!r) notFound();
   const state = await getPayState(r);
   const enabled = isPaymentEnabled();
   const price = formatPrice(r.package_price);
+  // Réservation pas encore payée : le créneau n'est bloqué que pendant HOLD_MINUTES.
+  const holding = state === "payable" && r.status === "nouvelle";
+  const holdUntil = holdExpiresAt(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
 
   const rows: [string, string][] = [
     ["Référence", r.reference],
@@ -52,7 +62,9 @@ export default async function PaymentPage({ params }: { params: Promise<{ token:
         <p className="mt-4 text-lg text-muted-foreground">
           {state === "paid"
             ? `Merci ${r.full_name.split(" ")[0]} ! Ton paiement est bien reçu, ton live est calé.`
-            : `Bonjour ${r.full_name.split(" ")[0]}, règle ton package pour réserver définitivement ton créneau.`}
+            : state === "expired"
+              ? `Désolé ${r.full_name.split(" ")[0]}, le délai de paiement est dépassé : le créneau a été libéré.`
+              : `Bonjour ${r.full_name.split(" ")[0]}, ta réservation est validée dès que le paiement est reçu.`}
         </p>
 
         <div className="mt-8 overflow-hidden rounded-[2rem] border border-border bg-card glow-card">
@@ -70,8 +82,30 @@ export default async function PaymentPage({ params }: { params: Promise<{ token:
           </div>
         </div>
 
+        {holding && (
+          <p className="mt-6 flex items-start gap-3 rounded-2xl bg-ocd-orange/10 px-4 py-3 text-sm font-medium">
+            <Clock className="mt-0.5 size-4 shrink-0 text-ocd-orange-dark" aria-hidden />
+            <span>
+              Créneau bloqué pour toi jusqu&apos;à <strong>{holdUntil}</strong> (heure de Lomé). Sans paiement d&apos;ici là, il est libéré
+              automatiquement ({HOLD_MINUTES} min).
+            </span>
+          </p>
+        )}
+
         <div className="mt-8">
-          {state === "paid" ? (
+          {state === "expired" ? (
+            <div role="status" className="rounded-3xl bg-muted p-6 text-center">
+              <Clock className="mx-auto size-12 text-muted-foreground" aria-hidden />
+              <p className="mt-3 text-xl font-semibold">Délai de paiement dépassé</p>
+              <p className="mt-1 text-muted-foreground">Aucun paiement n&apos;a été pris. Refais ta réservation pour choisir un créneau.</p>
+              <Link
+                href="/reserver"
+                className="mt-5 inline-flex h-12 items-center rounded-full bg-ocd-orange px-6 font-semibold text-ocd-black transition hover:bg-ocd-black hover:text-white"
+              >
+                Refaire une réservation
+              </Link>
+            </div>
+          ) : state === "paid" ? (
             <div role="status" className="rounded-3xl bg-emerald-500/10 p-6 text-center">
               <CheckCircle2 className="mx-auto size-12 text-emerald-600" aria-hidden />
               <p className="mt-3 text-xl font-semibold">Paiement reçu</p>
@@ -84,7 +118,7 @@ export default async function PaymentPage({ params }: { params: Promise<{ token:
               <p className="mt-1 text-muted-foreground">Elle a été annulée ou clôturée. Contacte l&apos;équipe si besoin.</p>
             </div>
           ) : enabled ? (
-            <PayButton token={token} amountLabel={price} />
+            <PayButton token={token} amountLabel={price} autoOpen={go === "1"} />
           ) : (
             <p className="rounded-3xl bg-ocd-cream p-6 text-center dark:bg-white/5">
               Le paiement en ligne arrive bientôt. L&apos;équipe t&apos;indique comment régler ton package.

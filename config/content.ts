@@ -30,7 +30,7 @@ export const faq: FaqItem[] = [
   {
     question: "Comment est confirmé mon créneau ?",
     answer:
-      "Ta demande arrive directement à l'équipe et tu reçois un email de confirmation avec ta référence. L'équipe vérifie la disponibilité, puis te confirme le créneau et les modalités de paiement par email. Ton créneau est définitivement bloqué après paiement.",
+      "Ta réservation est validée au moment du paiement en ligne. Après le choix de ton créneau, tu paies ton package par Mobile Money (le créneau est bloqué 20 minutes pour ça) et tu reçois aussitôt la confirmation par email avec ta référence. Sans paiement, aucune réservation n'est enregistrée.",
   },
   {
     question: "Puis-je reporter mon live ?",
@@ -40,7 +40,7 @@ export const faq: FaqItem[] = [
   {
     question: "Quels sont les modes de paiement ?",
     answer:
-      "Mobile Money (T-Money, Flooz), espèces au studio à Lomé, et pour l'international : MTN Mobile Money, Orange Money, Wave ou virement. Le paiement en ligne directement sur le site arrive bientôt.",
+      "Le paiement se fait en ligne, au moment de réserver, par Mobile Money : T-Money et Moov Money au Togo, et MTN Mobile Money, Orange Money ou Wave dans les autres pays. C'est rapide et sécurisé (Swinmo Pay).",
   },
   {
     question: "Faut-il beaucoup d'abonnés pour réserver ?",
@@ -68,7 +68,7 @@ export const prepareChecklist = [
 export const bookingConditions = [
   "En présentiel, arrive au studio 30 minutes avant le début de ton créneau.",
   "Tout retard est décompté de la durée du live, qui se termine à l'heure prévue.",
-  "Le créneau est confirmé par l'équipe par email et définitivement bloqué après paiement.",
+  "La réservation n'est validée qu'après le paiement en ligne. Le créneau est bloqué 20 minutes pour payer, puis libéré s'il n'est pas réglé.",
   "Report possible jusqu'à 48 heures avant le live, selon les disponibilités. Passé ce délai, le live est dû.",
   "OCD Live peut refuser ou interrompre un live qui ne respecte pas les contenus autorisés.",
 ];

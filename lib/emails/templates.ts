@@ -306,7 +306,7 @@ export function reservationTeamEmail(v: ReservationView, adminUrl?: string): Ema
     internal: true,
     preheader: `${v.businessName} · ${v.dateLabel}, ${v.slotLabel} · ${v.packageName}`,
     body: [
-      pill("Nouvelle réservation", C.ink, C.orange),
+      pill("Nouvelle réservation payée", C.ink, C.orange),
       heading(v.businessName, "veut passer en live."),
       paragraph(`${esc(v.fullName)} a réservé le <strong>${esc(v.dateLabel)}</strong> de <strong>${esc(v.slotLabel)}</strong>.`),
       detailsCard(rows, "Détails"),
@@ -315,10 +315,10 @@ export function reservationTeamEmail(v: ReservationView, adminUrl?: string): Ema
     ].join(""),
   });
   return {
-    subject: `🎥 Nouvelle réservation ${v.reference} · ${v.businessName} · ${v.dateLabel}`,
+    subject: `💳 Réservation payée ${v.reference} · ${v.businessName} · ${v.dateLabel}`,
 
     html,
-    text: textBlock(["Nouvelle réservation", "", textRows(rows), adminUrl && `\nAdmin : ${adminUrl}`]),
+    text: textBlock(["Nouvelle réservation payée", "", textRows(rows), adminUrl && `\nAdmin : ${adminUrl}`]),
   };
 }
 
@@ -581,10 +581,10 @@ export function candidatureUpdateEmail(v: CandidatureView, status: "entretien" |
 /* ─── Catalogue (aperçu dans l'admin) ──────────────────────────────────── */
 
 export const EMAIL_TEMPLATES = {
-  "reservation-recue": { label: "Réservation · demande reçue", audience: "Client", trigger: "Automatique à chaque réservation" },
-  "reservation-equipe": { label: "Réservation · alerte équipe", audience: "Équipe", trigger: "Automatique à chaque réservation" },
+  "reservation-recue": { label: "Réservation · demande reçue", audience: "Client", trigger: "Plus envoyé automatiquement (réservation = paiement)" },
+  "reservation-equipe": { label: "Réservation · alerte équipe", audience: "Équipe", trigger: "Automatique après chaque paiement" },
   "reservation-confirmee": { label: "Réservation · confirmée", audience: "Client", trigger: "Statut « Confirmée » dans l'admin" },
-  "reservation-payee": { label: "Réservation · paiement reçu", audience: "Client", trigger: "Statut « Payée » dans l'admin" },
+  "reservation-payee": { label: "Réservation · paiement reçu", audience: "Client", trigger: "Automatique après chaque paiement" },
   "reservation-rappel": { label: "Réservation · rappel J-1", audience: "Client", trigger: "Bouton « Envoyer le rappel » dans l'admin" },
   "reservation-merci": { label: "Réservation · merci", audience: "Client", trigger: "Statut « Réalisée » dans l'admin" },
   "reservation-annulee": { label: "Réservation · annulée", audience: "Client", trigger: "Statut « Annulée » dans l'admin" },

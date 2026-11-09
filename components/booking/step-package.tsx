@@ -21,7 +21,7 @@ export function StepPackage() {
       title="Choisis ton package"
       description={
         <>
-          Prix en FCFA, à régler après confirmation de ton créneau.{" "}
+          Prix en FCFA, payé en ligne par Mobile Money au moment de réserver.{" "}
           <Link href="/packages#comparatif" target="_blank" className="font-medium text-accent-text underline underline-offset-4">
             Comparer les packages
           </Link>

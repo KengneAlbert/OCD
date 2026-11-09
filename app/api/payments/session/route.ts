@@ -25,6 +25,9 @@ export async function POST(request: Request) {
 
   const state = await getPayState(reservation);
   if (state === "paid") return NextResponse.json({ error: "Cette réservation est déjà payée. Merci !" }, { status: 409 });
+  if (state === "expired") {
+    return NextResponse.json({ error: "Le délai de paiement est dépassé et le créneau a été libéré. Refais une réservation." }, { status: 409 });
+  }
   if (state === "closed") return NextResponse.json({ error: "Cette réservation ne peut plus être payée. Contacte l'équipe." }, { status: 409 });
 
   try {

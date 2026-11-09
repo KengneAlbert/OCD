@@ -7,11 +7,11 @@ export const dynamic = "force-dynamic";
 export default async function PanelLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const admin = await requireAdmin();
 
-  // Compteurs « à traiter » dans la navigation.
+  // Compteurs « à traiter » dans la navigation (réservations payées à préparer).
   const db = getServiceClient();
   const [res, cand] = db
     ? await Promise.all([
-        db.from("reservations").select("id", { count: "exact", head: true }).eq("status", "nouvelle"),
+        db.from("reservations").select("id", { count: "exact", head: true }).eq("status", "payee"),
         db.from("candidatures").select("id", { count: "exact", head: true }).eq("status", "nouvelle"),
       ])
     : [{ count: 0 }, { count: 0 }];

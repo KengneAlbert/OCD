@@ -14,6 +14,7 @@ import {
 import {
   CANDIDATURE_STATUSES,
   candidatureStatusMeta,
+  MANUAL_RESERVATION_STATUSES,
   RESERVATION_STATUSES,
   reservationStatusMeta,
   toneClasses,
@@ -99,7 +100,12 @@ export function StatusForm({ kind, id, current, hasEmail }: { kind: "reservation
           name="status"
           value={status}
           onChange={setStatus}
-          options={kind === "reservation" ? reservationOptions : candidatureOptions}
+          options={
+            kind === "reservation"
+              ? // Pas de réservation sans paiement : « Attente paiement » et « Non payée » sont gérés automatiquement.
+                reservationOptions.filter((o) => o.value === current || (MANUAL_RESERVATION_STATUSES as readonly string[]).includes(o.value))
+              : candidatureOptions
+          }
         />
       </div>
       <div>

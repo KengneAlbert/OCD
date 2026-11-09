@@ -1,6 +1,7 @@
 import "server-only";
 import type { CandidatureStatus, ReservationStatus } from "@/lib/admin/status";
 import { getServiceClient } from "@/lib/supabase/admin";
+import { releaseExpiredHolds } from "./holds";
 import type { ActivityRow, CandidatureRow, EmailLogRow, ReservationRow } from "./types";
 
 export const PAGE_SIZE = 25;
@@ -22,9 +23,11 @@ const sanitize = (q: string) => q.replace(/[%,()*\\]/g, " ").trim().slice(0, 60)
 export async function listReservations(f: ReservationFilters) {
   const db = getServiceClient();
   if (!db) return { rows: [] as ReservationRow[], count: 0 };
+  await releaseExpiredHolds();
   const page = Math.max(1, f.page ?? 1);
   let query = db.from("reservations").select("*", { count: "exact" });
-  if (f.status) query = query.eq("status", f.status);
+  // Pas de réservation sans paiement : les tentatives non payées n'apparaissent que sur demande.
+  query = f.status ? query.eq("status", f.status) : query.not("status", "in", "(nouvelle,expiree)");
   if (f.type) query = query.eq("live_type", f.type);
   if (f.from) query = query.gte("live_date", f.from);
   if (f.to) query = query.lte("live_date", f.to);
@@ -46,7 +49,8 @@ export async function exportReservations(f: ReservationFilters) {
   const db = getServiceClient();
   if (!db) return [] as ReservationRow[];
   let query = db.from("reservations").select("*");
-  if (f.status) query = query.eq("status", f.status);
+  // Pas de réservation sans paiement : les tentatives non payées n'apparaissent que sur demande.
+  query = f.status ? query.eq("status", f.status) : query.not("status", "in", "(nouvelle,expiree)");
   if (f.type) query = query.eq("live_type", f.type);
   if (f.from) query = query.gte("live_date", f.from);
   if (f.to) query = query.lte("live_date", f.to);
@@ -137,6 +141,7 @@ export interface DashboardData {
 export async function getDashboard(today: string): Promise<DashboardData | null> {
   const db = getServiceClient();
   if (!db) return null;
+  await releaseExpiredHolds();
 
   const since = new Date(Date.now() - 13 * 86_400_000).toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -147,16 +152,16 @@ export async function getDashboard(today: string): Promise<DashboardData | null>
       .from("reservations")
       .select("*")
       .gte("live_date", today)
-      .in("status", ["nouvelle", "confirmee", "payee"])
+      .in("status", ["confirmee", "payee"])
       .order("live_date")
       .order("slot_start")
       .limit(8),
-    db.from("reservations").select("*").order("created_at", { ascending: false }).limit(6),
+    db.from("reservations").select("*").not("status", "in", "(nouvelle,expiree)").order("created_at", { ascending: false }).limit(6),
     db.from("candidatures").select("id", { count: "exact", head: true }).eq("status", "nouvelle"),
     db.from("email_log").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", weekAgo),
   ]);
 
-  const byStatus = { nouvelle: 0, confirmee: 0, payee: 0, realisee: 0, annulee: 0, absente: 0 } as Record<ReservationStatus, number>;
+  const byStatus = { nouvelle: 0, confirmee: 0, payee: 0, realisee: 0, annulee: 0, absente: 0, expiree: 0 } as Record<ReservationStatus, number>;
   let revenueConfirmed = 0;
   let revenuePaid = 0;
   const perDay = new Map<string, number>();

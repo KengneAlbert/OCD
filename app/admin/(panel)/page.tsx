@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { EmptyState, formatDateTime, formatShortDate, PageTitle, Panel, StatCard, StatusBadge } from "@/components/admin/ui";
-import { RESERVATION_STATUSES, reservationStatusMeta, toneClasses } from "@/lib/admin/status";
+import { MANUAL_RESERVATION_STATUSES, reservationStatusMeta, toneClasses } from "@/lib/admin/status";
 import { getDashboard } from "@/lib/db/admin-queries";
 import { formatSlotFr } from "@/lib/schedule";
 import { cn, formatPrice } from "@/lib/utils";
@@ -16,15 +16,15 @@ export default async function DashboardPage() {
   if (!data) return <EmptyState title="Supabase non configuré">Les données apparaîtront ici une fois la base connectée.</EmptyState>;
 
   const max = Math.max(1, ...data.last14Days.map((d) => d.count));
-  const active = data.byStatus.nouvelle + data.byStatus.confirmee + data.byStatus.payee;
+  const active = data.byStatus.confirmee + data.byStatus.payee;
 
   return (
     <>
       <PageTitle eyebrow="Vue d'ensemble" title={<>Bonjour <span className="accent font-normal text-ocd-orange-dark dark:text-ocd-orange">l&apos;équipe.</span></>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard accent label="À traiter" value={data.byStatus.nouvelle} hint="nouvelles réservations" href="/admin/reservations?status=nouvelle" />
-        <StatCard label="Lives à venir" value={active} hint="nouvelles, confirmées, payées" href="/admin/reservations?sort=live" />
+        <StatCard accent label="Payées" value={data.byStatus.payee} hint="réservations à préparer" href="/admin/reservations?status=payee" />
+        <StatCard label="Lives à venir" value={active} hint="payés et confirmés" href="/admin/reservations?sort=live" />
         <StatCard label="Encaissé" value={formatPrice(data.revenuePaid)} hint={`+ ${formatPrice(data.revenueConfirmed)} confirmés`} />
         <StatCard
           label="Candidatures"
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
           </div>
 
           <ul className="mt-6 space-y-2">
-            {RESERVATION_STATUSES.map((s) => (
+            {MANUAL_RESERVATION_STATUSES.map((s) => (
               <li key={s}>
                 <Link href={`/admin/reservations?status=${s}`} className="flex items-center gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-muted">
                   <span aria-hidden className={cn("size-2.5 rounded-full ring-1 ring-inset", toneClasses[reservationStatusMeta[s].tone])} />

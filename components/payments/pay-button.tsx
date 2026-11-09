@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, Loader2, Lock, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,18 @@ function loadInline(): Promise<void> {
 
 type Phase = "idle" | "opening" | "open" | "confirming" | "success" | "pending";
 
-export function PayButton({ token, amountLabel, className }: { token: string; amountLabel: string; className?: string }) {
+export function PayButton({
+  token,
+  amountLabel,
+  autoOpen = false,
+  className,
+}: {
+  token: string;
+  amountLabel: string;
+  /** Ouvre la fenêtre de paiement dès l'arrivée sur la page (après « Payer et réserver »). */
+  autoOpen?: boolean;
+  className?: string;
+}) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -117,12 +128,22 @@ export function PayButton({ token, amountLabel, className }: { token: string; am
     }
   };
 
+  // Ouverture automatique une seule fois (le ?go=1 est retiré de l'URL pour ne pas rouvrir au rafraîchissement).
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!autoOpen || opened.current) return;
+    opened.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    void pay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
+
   if (phase === "success") {
     return (
       <div role="status" className="rounded-3xl bg-emerald-500/10 p-6 text-center">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" aria-hidden />
-        <p className="mt-3 text-xl font-semibold">Paiement reçu, merci !</p>
-        <p className="mt-1 text-muted-foreground">Ton créneau est bloqué. Un email de confirmation t&apos;a été envoyé.</p>
+        <p className="mt-3 text-xl font-semibold">Paiement reçu, ta réservation est validée !</p>
+        <p className="mt-1 text-muted-foreground">Ton créneau est à toi. Un email de confirmation t&apos;a été envoyé.</p>
       </div>
     );
   }

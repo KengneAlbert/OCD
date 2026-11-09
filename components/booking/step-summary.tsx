@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Send, ShieldCheck } from "lucide-react";
+import { Loader2, Lock, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getPackage } from "@/config/packages";
+import { formatPrice } from "@/lib/utils";
 import { buildReservation, firstInvalidStep } from "@/lib/booking";
 import { sendReservation } from "@/lib/notifications";
 import { generateReference } from "@/lib/reference";
@@ -49,16 +51,18 @@ export function StepSummary() {
       setError(result.error ?? "L'envoi a échoué. Réessaie.");
       return;
     }
-    const last: LastReservation = {
-      reservation,
-      whatsappUrl: result.whatsappUrl,
-      whatsappBlocked: result.whatsappBlocked,
-      emailed: result.emailed,
-      payUrl: result.payUrl,
-    };
+    if (!result.payUrl) {
+      setSending(false);
+      setError("Le paiement n'a pas pu être préparé. Réessaie dans un instant.");
+      return;
+    }
+    const last: LastReservation = { reservation, emailed: result.emailed, payUrl: result.payUrl };
     writeSession(STORAGE_KEYS.lastReservation, last);
-    router.push("/confirmation");
+    // Pas de réservation sans paiement : direction la page de paiement, qui ouvre Mobile Money tout de suite.
+    router.push(`${new URL(result.payUrl).pathname}?go=1`);
   };
+
+  const price = getPackage(reservation?.packageId)?.price;
 
   if (!reservation) {
     return (
@@ -69,7 +73,7 @@ export function StepSummary() {
   }
 
   return (
-    <StepShell title="Vérifie ta réservation" description="Tout est bon ? Tu peux modifier chaque section avant d'envoyer.">
+    <StepShell title="Vérifie ta réservation" description="Tout est bon ? Tu peux modifier chaque section avant de payer.">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-ocd-black p-5 text-white glow-strong dark:bg-card">
         <div>
           <p className="text-sm text-white/70">Ta référence</p>
@@ -88,12 +92,12 @@ export function StepSummary() {
 
       <div className="space-y-3 rounded-3xl border border-border bg-surface p-5 sm:p-6">
         <Button size="lg" className="w-full whitespace-normal" onClick={handleSend} disabled={sending}>
-          {sending ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
-          {sending ? "Envoi en cours…" : "Envoyer ma réservation"}
+          {sending ? <Loader2 className="animate-spin" aria-hidden /> : <Smartphone aria-hidden />}
+          {sending ? "Préparation du paiement…" : price ? `Payer et réserver · ${formatPrice(price)}` : "Payer et réserver"}
         </Button>
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-whatsapp" aria-hidden />
-          {`Ta réservation est envoyée à l'équipe OCD Live et tu reçois une confirmation par email à ${reservation.info.email}. L'équipe te confirme ensuite le créneau et le paiement.`}
+          <Lock className="mt-0.5 size-4 shrink-0 text-whatsapp" aria-hidden />
+          {`Ta réservation est validée dès le paiement Mobile Money (T-Money, Moov Money, Orange, MTN, Wave…). Le créneau est bloqué 20 minutes pour te laisser le temps de payer. La confirmation arrive par email à ${reservation.info.email}.`}
         </p>
       </div>
     </StepShell>

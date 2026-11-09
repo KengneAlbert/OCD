@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { siteConfig } from "@/config/site";
 import { payUrlFor } from "@/lib/db/payments";
 import { insertReservation } from "@/lib/db/reservations";
-import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
-import { reservationLikeFromForm, reservationReceivedEmail, reservationTeamEmail, toReservationView } from "@/lib/emails/templates";
-import { RESERVATION_PROVIDER } from "@/lib/notifications/provider";
+import { HOLD_MINUTES } from "@/lib/db/holds";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { isSlotBookable } from "@/lib/schedule";
 import { isPaymentEnabled } from "@/lib/payments/swinmo";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createReservationSchema } from "@/lib/validation/reservation";
 
 export const runtime = "nodejs";
@@ -15,8 +13,10 @@ export const runtime = "nodejs";
 /**
  * POST /api/reservations
  * 1. Protections : rate limiting, honeypot, validation zod serveur, créneau valide.
- * 2. Enregistrement dans Supabase (si configuré) : un créneau ne peut être pris qu'une fois.
- * 3. Emails Brevo : confirmation au client + alerte à l'équipe (canal unique des réservations).
+ * 2. Le créneau est bloqué dans Supabase (un créneau ne peut être pris qu'une fois)
+ *    pendant HOLD_MINUTES, le temps de payer.
+ * 3. Réponse : lien de paiement. Pas de réservation sans paiement : les emails partent
+ *    et la réservation passe « Payée » seulement après le paiement (lib/db/payments.ts).
  */
 export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
@@ -40,8 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Les réservations partent uniquement par email : l'adresse est obligatoire.
-  const provider = RESERVATION_PROVIDER;
+  // L'email est obligatoire : la confirmation de paiement y est envoyée.
   const parsed = createReservationSchema({ emailRequired: true }).safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Données invalides." }, { status: 422 });
@@ -52,59 +51,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ce créneau n'est plus disponible. Choisis-en un autre." }, { status: 409 });
   }
 
-  // ─── Stockage ───
+  // Pas de réservation sans paiement : stockage + paiement en ligne obligatoires.
+  if (!isSupabaseConfigured() || !isPaymentEnabled()) {
+    console.error(
+      "[reservations] Réservation impossible : variables manquantes →",
+      [
+        !process.env.NEXT_PUBLIC_SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL",
+        !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY",
+        !process.env.SWINMO_SECRET_KEY && "SWINMO_SECRET_KEY",
+      ]
+        .filter(Boolean)
+        .join(", "),
+    );
+    return NextResponse.json(
+      { error: "La réservation en ligne est momentanément indisponible. Réessaie dans quelques minutes ou contacte-nous." },
+      { status: 503 },
+    );
+  }
+
+  // ─── Blocage du créneau (en attente du paiement) ───
   const stored = await insertReservation(reservation, {
-    channel: provider,
+    channel: "site",
     ip,
     userAgent: request.headers.get("user-agent"),
     timezone: typeof body.timezone === "string" ? body.timezone.slice(0, 64) : undefined,
   });
-  if (stored && !stored.ok) {
-    if (stored.reason === "slot_taken") {
+  if (!stored?.ok) {
+    if (stored?.reason === "slot_taken") {
       return NextResponse.json({ error: "Oups, ce créneau vient d'être réservé. Choisis-en un autre." }, { status: 409 });
     }
-    if (stored.reason === "duplicate") return NextResponse.json({ ok: true, duplicate: true });
-    // Erreur technique : on n'empêche pas la réservation de partir (WhatsApp / email).
-  }
-
-  // Lien de paiement Mobile Money (si Swinmo est configuré et la réservation enregistrée).
-  const payUrl = stored?.ok && stored.payToken && isPaymentEnabled() ? payUrlFor(stored.payToken) : undefined;
-
-  // ─── Emails ───
-  const brevo = getBrevoEnv();
-  if (!brevo && !stored?.ok) {
-    console.error("[reservations] Brevo non configuré et réservation non enregistrée.");
-    return NextResponse.json({ error: "Service d'envoi indisponible. Contacte-nous sur WhatsApp." }, { status: 503 });
-  }
-
-  let emailed = false;
-  if (brevo) {
-    const view = toReservationView({ ...reservationLikeFromForm(reservation), payUrl });
-    const entity = stored?.ok ? { type: "reservation" as const, id: stored.id } : undefined;
-    const adminUrl = stored?.ok ? `${siteConfig.url}/admin/reservations/${stored.id}` : undefined;
-    const [team, client] = await Promise.all([
-      sendEmail(
-        {
-          template: "reservation-equipe",
-          to: { email: brevo.teamEmail, name: "Équipe OCD Live" },
-          replyTo: view.email ? { email: view.email, name: view.fullName } : undefined,
-          content: reservationTeamEmail(view, adminUrl),
-          entity,
-        },
-        brevo,
-      ),
-      view.email
-        ? sendEmail(
-            { template: "reservation-recue", to: { email: view.email, name: view.fullName }, content: reservationReceivedEmail(view), entity },
-            brevo,
-          )
-        : Promise.resolve({ ok: true }),
-    ]);
-    emailed = team.ok && client.ok;
-    if (!team.ok && !stored?.ok) {
-      return NextResponse.json({ error: "L'envoi a échoué. Réessaie ou contacte-nous sur WhatsApp." }, { status: 502 });
+    if (stored?.reason === "duplicate" && stored.payToken) {
+      return NextResponse.json({ ok: true, duplicate: true, payUrl: payUrlFor(stored.payToken) });
     }
+    return NextResponse.json({ error: "La réservation n'a pas pu être enregistrée. Réessaie." }, { status: 500 });
+  }
+  if (!stored.payToken) {
+    return NextResponse.json({ error: "La réservation n'a pas pu être enregistrée. Réessaie." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, stored: Boolean(stored?.ok), emailed, payUrl });
+  // Les emails (client + équipe) partent uniquement une fois le paiement reçu (voir applyCharge).
+  return NextResponse.json({ ok: true, stored: true, payUrl: payUrlFor(stored.payToken), holdMinutes: HOLD_MINUTES });
 }

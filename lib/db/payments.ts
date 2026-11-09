@@ -1,11 +1,12 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { siteConfig } from "@/config/site";
-import { sendEmail } from "@/lib/emails/send";
-import { reservationPaidEmail, toReservationView } from "@/lib/emails/templates";
+import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
+import { reservationPaidEmail, reservationTeamEmail, toReservationView } from "@/lib/emails/templates";
 import { createCheckoutSession, getSwinmoEnv, operatorLabel, XOF_COUNTRIES, type SwinmoCharge } from "@/lib/payments/swinmo";
 import { getServiceClient } from "@/lib/supabase/admin";
 import { logActivity } from "./activity";
+import { isHoldExpired, PAYMENT_SESSION_MINUTES } from "./holds";
 import { rowToReservationLike } from "./reservations";
 import type { ReservationRow } from "./types";
 
@@ -61,12 +62,16 @@ export async function hasSucceededPayment(reservationId: string): Promise<boolea
   return (count ?? 0) > 0;
 }
 
-export type PayState = "payable" | "paid" | "closed";
+/** expired = créneau bloqué mais délai de paiement dépassé (la réservation n'a jamais existé). */
+export type PayState = "payable" | "paid" | "closed" | "expired";
 
 export async function getPayState(row: ReservationRow): Promise<PayState> {
   if (row.status === "payee" || row.status === "realisee" || (await hasSucceededPayment(row.id))) return "paid";
+  if (row.status === "nouvelle" && isHoldExpired(row.created_at)) return "expired";
+  if (row.status === "expiree") return "expired";
   return PAYABLE.has(row.status) ? "payable" : "closed";
 }
+
 
 /**
  * Crée une session de paiement Swinmo pour une réservation.
@@ -87,7 +92,7 @@ export async function startPayment(row: ReservationRow): Promise<{ sessionId: st
     country: XOF_COUNTRIES.includes(row.phone_country) ? row.phone_country : undefined,
     customer: { name: row.full_name, email: row.email ?? undefined, phone_number: row.phone_e164 },
     metadata: { reservation_id: row.id, reservation_reference: row.reference },
-    expiresInMinutes: 60,
+    expiresInMinutes: PAYMENT_SESSION_MINUTES,
   });
 
   const { error } = await db.from("payments").insert({
@@ -198,8 +203,15 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
     actor: "Swinmo Pay",
   });
 
-  if (reservation && PAYABLE.has(reservation.status)) {
-    await db.from("reservations").update({ status: "payee" }).eq("id", reservation.id);
+  // Paiement arrivé juste après la libération automatique du créneau : on le récupère s'il est encore libre.
+  const revivable = reservation?.status === "expiree";
+  let slotLost = false;
+  if (reservation && (PAYABLE.has(reservation.status) || revivable)) {
+    const { error: updateError } = await db.from("reservations").update({ status: "payee" }).eq("id", reservation.id);
+    slotLost = Boolean(updateError);
+  }
+
+  if (reservation && !slotLost && (PAYABLE.has(reservation.status) || revivable)) {
     await logActivity({
       entityType: "reservation",
       entityId: reservation.id,
@@ -208,21 +220,33 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
       meta: { from: reservation.status, to: "payee" },
       actor: "Swinmo Pay",
     });
-    if (reservation.email) {
-      await sendEmail({
-        template: "reservation-payee",
-        to: { email: reservation.email, name: reservation.full_name },
-        content: reservationPaidEmail(toReservationView(rowToReservationLike(reservation))),
-        entity: { type: "reservation", id: reservation.id },
-      });
-    }
+    // Pas de réservation sans paiement : c'est ici que partent la confirmation client et l'alerte équipe.
+    const view = toReservationView(rowToReservationLike(reservation));
+    const entity = { type: "reservation" as const, id: reservation.id };
+    const brevo = getBrevoEnv();
+    await Promise.all([
+      reservation.email
+        ? sendEmail({ template: "reservation-payee", to: { email: reservation.email, name: reservation.full_name }, content: reservationPaidEmail(view), entity })
+        : null,
+      brevo
+        ? sendEmail({
+            template: "reservation-equipe",
+            to: { email: brevo.teamEmail, name: "Équipe OCD Live" },
+            replyTo: view.email ? { email: view.email, name: view.fullName } : undefined,
+            content: reservationTeamEmail(view, `${siteConfig.url}/admin/reservations/${reservation.id}`),
+            entity,
+          })
+        : null,
+    ]);
   } else if (reservation) {
-    // Payée alors que la réservation est annulée / absente : à traiter à la main (remboursement).
+    // Payée alors que la réservation est annulée / absente, ou créneau repris entre-temps : remboursement à traiter.
     await logActivity({
       entityType: "reservation",
       entityId: reservation.id,
       action: "payment_anomaly",
-      message: `⚠️ Paiement reçu alors que la réservation est « ${reservation.status} » : vérifier et rembourser si besoin.`,
+      message: slotLost
+        ? "⚠️ Paiement reçu après la libération du créneau, qui a été repris entre-temps : contacter le client et rembourser ou proposer un autre créneau."
+        : `⚠️ Paiement reçu alors que la réservation est « ${reservation.status} » : vérifier et rembourser si besoin.`,
     });
   }
   return "fulfilled";
