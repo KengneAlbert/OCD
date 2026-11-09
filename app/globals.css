@@ -97,6 +97,8 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
+    /* Aucun défilement horizontal (bandes inclinées, marquees) ; clip ne casse pas position: sticky. */
+    overflow-x: clip;
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);

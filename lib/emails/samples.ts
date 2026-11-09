@@ -15,6 +15,7 @@ import {
   type EmailContent,
   type EmailTemplateId,
 } from "./templates";
+import { teamDailyEmail } from "./daily";
 
 const reservation = toReservationView({
   reference: "OCD-K7M2QX",
@@ -71,6 +72,19 @@ export function renderSample(id: EmailTemplateId): EmailContent {
       return reservationThanksEmail(reservation);
     case "reservation-annulee":
       return reservationCancelledEmail(reservation, "Le créneau a dû être libéré suite à un imprévu au studio.");
+    case "equipe-recap":
+      return teamDailyEmail({
+        dateLabel: "jeudi 3 décembre 2026",
+        today: [
+          { slot: "10h00 – 11h30", businessName: reservation.businessName, fullName: reservation.fullName, phone: reservation.phoneLabel, liveType: "presentiel", packageName: reservation.packageName, status: "Payée", adminUrl: admin },
+          { slot: "16h00 – 17h30", businessName: "Kofi Sneakers", fullName: "Kofi Asante", phone: "+225 07 11 22 33 44", liveType: "distance", packageName: "Live à Distance", status: "Payée", adminUrl: admin },
+        ],
+        tomorrowCount: 3,
+        yesterday: { paid: 4, revenue: 95000 },
+        remindersSent: 3,
+        remindersFailed: 0,
+        anomalies: 1,
+      });
     case "candidature-recue":
       return candidatureReceivedEmail(candidature);
     case "candidature-equipe":

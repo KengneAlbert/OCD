@@ -54,19 +54,27 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [now] = useState(() => new Date());
 
-  // Restauration depuis sessionStorage + type présélectionné (?type=presentiel|distance).
+  // Restauration depuis sessionStorage + présélection depuis l'URL (?type=presentiel|distance&package=<id>).
   useEffect(() => {
     let restored = readSession<BookingState>(STORAGE_KEYS.booking) ?? initialState;
     const queryType = searchParams.get("type");
+    const queryPackage = getPackage(searchParams.get("package") ?? undefined);
     if (isLiveType(queryType)) {
       restored = { ...restored, liveType: queryType, step: 1, editingFromSummary: false };
+    }
+    if (queryPackage) {
+      restored = { ...restored, packageId: queryPackage.id, editingFromSummary: false };
+      // Package réservé à un seul type de live : on le choisit aussi.
+      if (queryPackage.compatibleWith.length === 1 && !isLiveType(queryType)) {
+        restored = { ...restored, liveType: queryPackage.compatibleWith[0], step: 1 };
+      }
     }
     restored = sanitize(restored, now);
     const invalid = firstInvalidStep(restored, now, emailRequired) ?? SUMMARY_STEP;
     restored.step = Math.min(Math.max(restored.step ?? 0, 0), invalid);
     setState(restored);
     setHydrated(true);
-    if (queryType) router.replace(pathname, { scroll: false });
+    if (queryType || queryPackage) router.replace(pathname, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

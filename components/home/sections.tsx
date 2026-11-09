@@ -18,7 +18,7 @@ import { cn, formatPrice } from "@/lib/utils";
 export function BigMarquee() {
   const cities = ["En direct", "Lomé", "Abidjan", "Dakar", "Douala", "Cotonou", "Kinshasa", "Paris", "Bruxelles"];
   return (
-    <div className="relative py-10 sm:py-16" aria-hidden>
+    <div className="relative overflow-hidden py-10 sm:py-16" aria-hidden>
       <div className="relative z-10 -mx-4 -rotate-2 bg-ocd-orange py-4 text-ocd-black shadow-[0_20px_40px_-20px_rgb(232_121_43/0.7)] sm:py-6">
         <Marquee className="text-[clamp(2.2rem,6.5vw,5rem)] leading-none font-semibold tracking-[-0.04em]">
           {cities.map((w, i) => (
@@ -118,7 +118,7 @@ export const howSteps = [
   { icon: MousePointerClick, title: "Choisis ton type", text: "Live au studio à Lomé, ou à distance depuis chez toi ou ta boutique." },
   { icon: CalendarDays, title: "Choisis ta date et ton heure", text: "Des créneaux de 1h30, du lundi au samedi, à partir du 1er décembre." },
   { icon: Package, title: "Choisis ton package", text: "Un live découverte, un pack de 4 lives, une formule tout le mois…" },
-  { icon: Send, title: "Envoie ta réservation", text: "Elle arrive directement à l'équipe et tu reçois une confirmation par email." },
+  { icon: Send, title: "Paie et c'est réservé", text: "Mobile Money ou carte, en 1 minute. Ta confirmation arrive aussitôt par email." },
 ];
 
 const stepStyles = [
@@ -168,12 +168,12 @@ export function HowItWorks() {
 export function PackagesPreview() {
   const highlighted = packages.filter((p) => p.highlighted).slice(0, 3);
   return (
-    <Section eyebrow="04 — La grille" title={<>Un prix pour chaque <span className="accent">ambition.</span></>} description="Prix en FCFA, réglés après confirmation de ton créneau.">
+    <Section eyebrow="04 — La grille" title={<>Un prix pour chaque <span className="accent">ambition.</span></>} description="Prix en FCFA, payés en ligne au moment de réserver (Mobile Money ou carte).">
       <ul className="border-t border-foreground">
         {highlighted.map((pkg, i) => (
           <li key={pkg.id}>
             <Link
-              href={`/reserver${pkg.compatibleWith.length === 1 ? `?type=${pkg.compatibleWith[0]}` : ""}`}
+              href={`/reserver?package=${pkg.id}`}
               className="group relative grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 overflow-hidden border-b border-foreground py-7 sm:grid-cols-12 sm:py-9"
             >
               <span aria-hidden className="absolute inset-0 translate-y-full bg-ocd-orange transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-y-0" />
@@ -188,6 +188,9 @@ export function PackagesPreview() {
                   )}
                 </span>
                 <span className="mt-1 block text-muted-foreground transition-colors group-hover:text-ocd-black/80">{pkg.tagline}</span>
+                <span className="mt-2 block font-mono text-[11px] tracking-wider text-muted-foreground uppercase transition-colors group-hover:text-ocd-black sm:hidden">
+                  {pkg.livesLabel} · {pkg.compatibleWith.length === 2 ? "Studio ou distance" : pkg.compatibleWith[0] === "presentiel" ? "Au studio" : "À distance"}
+                </span>
               </span>
               <span className="relative hidden font-mono text-xs tracking-wider text-muted-foreground uppercase transition-colors group-hover:text-ocd-black sm:col-span-3 sm:block">
                 {pkg.livesLabel} · {pkg.compatibleWith.length === 2 ? "Studio ou distance" : pkg.compatibleWith[0] === "presentiel" ? "Au studio" : "À distance"}

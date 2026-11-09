@@ -49,6 +49,7 @@ npm run dev                  # http://localhost:3000
 | `ADMIN_EMAILS`                | `a@ocdlive.com,b@ocdlive.com` | Emails autorisés à se connecter à `/admin`                     |
 | `SWINMO_SECRET_KEY`           | `sk_test_…` / `sk_live_…`  | Clé secrète Swinmo Pay (paiement Mobile Money)                    |
 | `SWINMO_WEBHOOK_SECRET`       | `…`                        | Secret du webhook Swinmo (vérification de signature)              |
+| `CRON_SECRET`                 | chaîne aléatoire (≥ 16)    | Protège la tâche du matin `/api/cron/daily` (envoyé par Vercel Cron) |
 
 > ⚠️ Les variables `NEXT_PUBLIC_*` et `NOTIFICATION_PROVIDER` sont lues **au build** : après modification sur Vercel, relancer un déploiement.
 
@@ -186,6 +187,15 @@ Réservation enregistrée → lien /paiement/<jeton secret> (page de confirmatio
 5. Après validation KYB, remplacer par la clé `sk_live_…` et déclarer le webhook live avec son propre secret.
 
 Les webhooks Swinmo ne sont **jamais renvoyés** : le retour navigateur (`/api/payments/confirm`) et le bouton **« Vérifier auprès de Swinmo »** de la fiche admin servent de rattrapage. Frais Swinmo : 2,5 % par paiement réussi, à la charge d'OCD Live (le net est visible dans l'admin). Les prix sont en FCFA (XOF) ; un client hors zone XOF paie dans sa devise, convertie par Swinmo.
+
+## Tâche du matin (Vercel Cron)
+
+`vercel.json` programme `GET /api/cron/daily` tous les jours à **6 h (heure de Lomé = UTC)** :
+
+1. rappel J-1 (`reservation-rappel`) aux clients dont le live payé ou confirmé est le lendemain (jamais envoyé deux fois) ;
+2. récap du jour (`equipe-recap`) à `OCD_TEAM_EMAIL` : lives du jour, nombre de lives demain, encaissements de la veille, anomalies de paiement.
+
+Renseigner `CRON_SECRET` sur Vercel : Vercel l'envoie dans `Authorization: Bearer …`, la route refuse tout autre appel. Test manuel : `curl -H "Authorization: Bearer $CRON_SECRET" https://<domaine>/api/cron/daily`.
 
 ## Déploiement Vercel
 

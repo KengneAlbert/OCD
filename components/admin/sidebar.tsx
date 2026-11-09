@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, CalendarCheck, ExternalLink, LayoutDashboard, LogOut, Mail, Users } from "lucide-react";
+import { Activity, CalendarCheck, CalendarRange, ExternalLink, LayoutDashboard, LogOut, Mail, Users } from "lucide-react";
 import { signOutAction } from "@/lib/admin/actions";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
+  { href: "/admin/planning", label: "Planning", icon: CalendarRange },
   { href: "/admin/reservations", label: "Réservations", icon: CalendarCheck },
   { href: "/admin/candidatures", label: "Candidatures", icon: Users },
   { href: "/admin/emails", label: "Emails", icon: Mail },

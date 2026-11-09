@@ -68,7 +68,7 @@ export function PhoneField<T extends FieldValues>({
       </div>
       {!error && (
         <p id={hintId} className="text-sm text-muted-foreground">
-          Le numéro sur lequel l&apos;équipe te confirme tout.
+          Le numéro sur lequel l&apos;équipe te contacte (test de connexion, imprévus).
         </p>
       )}
       <FieldError id={errorId} message={error} />

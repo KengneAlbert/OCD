@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { formatDateTime, formatShortDate, EmptyState, PageTitle, Panel, StatCard, StatusBadge } from "@/components/admin/ui";
-import { getDashboard, type Breakdown } from "@/lib/db/dashboard";
+import { getDashboard, isPeriod, PERIODS, type Breakdown } from "@/lib/db/dashboard";
 import { formatSlotFr } from "@/lib/schedule";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -14,8 +14,8 @@ const pct = (rate: number | null) => (rate === null ? "—" : `${Math.round(rate
 const compact = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M` : n >= 1000 ? `${Math.round(n / 1000)} k` : String(n));
 
 /** Évolution par rapport au mois précédent. */
-function Trend({ now, before, onAccent = false }: { now: number; before: number; onAccent?: boolean }) {
-  if (!before) return <span className={onAccent ? "text-ocd-black/70" : "text-muted-foreground"}>{now ? "premier mois" : "aucune donnée le mois dernier"}</span>;
+function Trend({ now, before, vs, onAccent = false }: { now: number; before: number; vs: string; onAccent?: boolean }) {
+  if (!before) return <span className={onAccent ? "text-ocd-black/70" : "text-muted-foreground"}>{now ? "rien sur la période précédente" : "aucune vente"}</span>;
   const delta = Math.round(((now - before) / before) * 100);
   const up = delta >= 0;
   const Icon = up ? ArrowUpRight : ArrowDownRight;
@@ -23,7 +23,7 @@ function Trend({ now, before, onAccent = false }: { now: number; before: number;
     <span className={cn("inline-flex items-center gap-1 font-semibold", onAccent ? "text-ocd-black" : up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
       <Icon className="size-4" aria-hidden />
       {up ? "+" : ""}
-      {delta} % <span className={cn("font-normal", onAccent ? "text-ocd-black/70" : "text-muted-foreground")}>vs mois dernier</span>
+      {delta} % <span className={cn("font-normal", onAccent ? "text-ocd-black/70" : "text-muted-foreground")}>{vs}</span>
     </span>
   );
 }
@@ -51,24 +51,40 @@ function Bars({ items, empty, money = true }: { items: Breakdown[]; empty: strin
   );
 }
 
-export default async function DashboardPage() {
-  const data = await getDashboard(todayInLome());
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
+  const { periode } = await searchParams;
+  const period = isPeriod(periode) ? periode : "mois";
+  const data = await getDashboard(todayInLome(), period);
   if (!data) return <EmptyState title="Supabase non configuré">Les données apparaîtront ici une fois la base connectée.</EmptyState>;
 
-  const { month } = data;
-  const maxDay = Math.max(1, ...data.revenue30Days.map((d) => d.amount));
-  const total30 = data.revenue30Days.reduce((t, d) => t + d.amount, 0);
+  const { current, previous } = data;
+  const vs = PERIODS[period].previous;
+  const maxBar = Math.max(1, ...data.chart.map((d) => d.amount));
+  const dense = data.chart.length > 16;
 
   return (
     <>
       <PageTitle
-        eyebrow={`Vue d'ensemble · ${month.label}`}
+        eyebrow={`Vue d'ensemble · ${data.periodLabel}`}
         title={
           <>
             Bonjour <span className="accent font-normal text-ocd-orange-dark dark:text-ocd-orange">l&apos;équipe.</span>
           </>
         }
-      />
+      >
+        <nav aria-label="Période" className="flex rounded-full border border-border p-1 text-sm">
+          {(Object.keys(PERIODS) as (keyof typeof PERIODS)[]).map((p) => (
+            <Link
+              key={p}
+              href={p === "mois" ? "/admin" : `/admin?periode=${p}`}
+              aria-current={p === period ? "page" : undefined}
+              className={cn("rounded-full px-3.5 py-1.5 transition", p === period ? "bg-foreground text-background" : "hover:bg-muted")}
+            >
+              {PERIODS[p].label}
+            </Link>
+          ))}
+        </nav>
+      </PageTitle>
 
       {data.emailsFailed7d > 0 && (
         <Link
@@ -82,18 +98,18 @@ export default async function DashboardPage() {
 
       {/* Argent */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard accent label="CA du mois" value={formatPrice(month.revenue)} hint={<Trend now={month.revenue} before={month.prevRevenue} onAccent />} />
-        <StatCard label="Net après frais" value={formatPrice(month.net)} hint={`${formatPrice(month.fees)} de frais Swinmo`} />
-        <StatCard label="Réservations payées" value={month.paid} hint={<Trend now={month.paid} before={month.prevPaid} />} href="/admin/reservations?status=payee" />
-        <StatCard label="Panier moyen" value={formatPrice(data.averageBasket)} hint={`${formatPrice(data.allTime.revenue)} encaissés au total`} />
+        <StatCard accent label="Chiffre d'affaires" value={formatPrice(current.revenue)} hint={<Trend now={current.revenue} before={previous.revenue} vs={vs} onAccent />} />
+        <StatCard label="Net après frais" value={formatPrice(current.net)} hint={`${formatPrice(current.fees)} de frais Swinmo`} />
+        <StatCard label="Réservations payées" value={current.paid} hint={<Trend now={current.paid} before={previous.paid} vs={vs} />} href="/admin/reservations?status=payee" />
+        <StatCard label="Panier moyen" value={formatPrice(data.averageBasket)} hint={`${formatPrice(data.allTimeRevenue)} encaissés au total`} />
       </div>
 
       {/* Activité */}
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          label="Conversion · 30 j"
-          value={pct(data.conversion30d.rate)}
-          hint={data.conversion30d.attempts ? `${data.conversion30d.paid} payées sur ${data.conversion30d.attempts} tentatives` : "aucune tentative"}
+          label="Conversion"
+          value={pct(data.conversion.rate)}
+          hint={data.conversion.attempts ? `${data.conversion.paid} payées sur ${data.conversion.attempts} tentatives` : "aucune tentative sur la période"}
           href="/admin/reservations?status=expiree"
         />
         <StatCard
@@ -118,25 +134,32 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        <Panel className="lg:col-span-3" title="Encaissements · 30 derniers jours" action={<span className="text-sm font-semibold tabular-nums">{formatPrice(total30)}</span>}>
-          <div className="flex h-44 items-end gap-1" role="img" aria-label="Montant encaissé par jour sur les 30 derniers jours">
-            {data.revenue30Days.map((d) => (
-              <div key={d.date} className="group relative flex h-full flex-1 flex-col items-center justify-end">
+        <Panel
+          className="lg:col-span-3"
+          title={`Encaissements par ${data.chartUnit} · ${data.periodLabel}`}
+          action={<span className="text-sm font-semibold tabular-nums">{formatPrice(current.revenue)}</span>}
+        >
+          <div className={cn("flex h-44 items-end", dense ? "gap-1" : "gap-2")} role="img" aria-label={`Montant encaissé par ${data.chartUnit}`}>
+            {data.chart.map((d) => (
+              <div key={d.key} className="group relative flex h-full flex-1 flex-col items-center justify-end">
                 <span className="pointer-events-none absolute -top-1 z-10 -translate-y-full rounded-md bg-ocd-black px-2 py-1 text-[10px] font-semibold whitespace-nowrap text-white opacity-0 transition group-hover:opacity-100">
-                  {formatShortDate(d.date)} · {formatPrice(d.amount)}
+                  {d.label} · {formatPrice(d.amount)} · {d.count} paiement{d.count > 1 ? "s" : ""}
                 </span>
                 <span
                   className={cn("w-full rounded-t-[3px] transition", d.amount ? "bg-ocd-orange group-hover:bg-ocd-orange-dark" : "bg-border")}
-                  style={{ height: `${Math.max(3, (d.amount / maxDay) * 100)}%` }}
+                  style={{ height: `${Math.max(3, (d.amount / maxBar) * 100)}%` }}
                 />
+                {!dense && <span className="mt-1.5 font-mono text-[10px] text-muted-foreground capitalize">{d.label}</span>}
               </div>
             ))}
           </div>
-          <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground">
-            <span>{formatShortDate(data.revenue30Days[0]!.date)}</span>
-            <span>max {compact(maxDay)} FCFA / jour</span>
-            <span>Aujourd&apos;hui</span>
-          </div>
+          {dense && (
+            <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground">
+              <span>{data.chart[0]?.label}</span>
+              <span>max {compact(maxBar)} FCFA / {data.chartUnit}</span>
+              <span>{data.chart.at(-1)?.label}</span>
+            </div>
+          )}
         </Panel>
 
         <Panel
@@ -175,7 +198,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <Panel title="Packages vendus">
+        <Panel title={`Packages vendus · ${PERIODS[period].label.toLowerCase()}`}>
           <Bars items={data.byPackage} empty="Aucune vente pour l'instant." />
         </Panel>
         <Panel title="Studio ou à distance">

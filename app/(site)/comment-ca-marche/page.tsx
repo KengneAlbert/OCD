@@ -18,7 +18,7 @@ const timelines = [
     icon: Mic,
     title: "Ton live au studio",
     steps: [
-      { when: "Après ta réservation", what: "Tu reçois un email de confirmation, puis l'équipe te confirme le créneau et le paiement." },
+      { when: "En réservant", what: "Tu paies en ligne (Mobile Money ou carte) : ta réservation est validée et la confirmation arrive aussitôt par email." },
       { when: "La veille", what: "Rappel par email et derniers conseils pour ta présentation." },
       { when: "Jour J, 30 min avant", what: "Tu arrives au studio, on installe tes produits et on règle la lumière." },
       { when: "Pendant 1h30", what: "La régie lance le live : tu présentes, ton numéro et ton adresse s'affichent." },
@@ -29,7 +29,7 @@ const timelines = [
     icon: Globe2,
     title: "Ton live à distance",
     steps: [
-      { when: "Après ta réservation", what: "Tu reçois un email de confirmation, puis l'équipe te confirme le créneau et le paiement." },
+      { when: "En réservant", what: "Tu paies en ligne (Mobile Money ou carte) : ta réservation est validée et la confirmation arrive aussitôt par email." },
       { when: "Avant le jour J", what: "Test de connexion avec l'équipe : image, son, cadrage." },
       { when: "Jour J, 15 min avant", what: "Tu te connectes, l'assistante OCD fait un dernier point avec toi." },
       { when: "Pendant 1h30", what: "Tu présentes depuis chez toi, l'assistante anime depuis le studio de Lomé." },
