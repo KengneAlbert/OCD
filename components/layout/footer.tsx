@@ -16,7 +16,12 @@ const columns = [
   {
     title: "OCD Live",
     links: [
+      { href: "/live", label: "Lives en direct" },
+      { href: "/marketplace", label: "Marketplace" },
+      { href: "/je-suis-en-live", label: "Je suis en live" },
+      { href: "/moi", label: "Espace vendeur" },
       { href: "/studio", label: "Le studio" },
+      { href: "/recrutement", label: "Recrutement" },
       { href: "/faq", label: "FAQ" },
       { href: "/contact", label: "Contact" },
     ],
@@ -31,7 +36,8 @@ const columns = [
   },
 ];
 
-export function Footer() {
+/** `recrutementOuvert` : sans recrutement en cours, le lien « Recrutement » est retiré. */
+export function Footer({ recrutementOuvert = true }: { recrutementOuvert?: boolean }) {
   const { studio } = siteConfig;
   return (
     <footer className="relative overflow-hidden bg-ocd-black text-white">
@@ -68,7 +74,7 @@ export function Footer() {
               <nav key={col.title} aria-label={col.title}>
                 <h2 className="mb-4 font-mono text-[11px] tracking-[0.2em] text-white/40 uppercase">{col.title}</h2>
                 <ul className="space-y-2.5">
-                  {col.links.map((l) => (
+                  {col.links.filter((l) => recrutementOuvert || l.href !== "/recrutement").map((l) => (
                     <li key={l.href}>
                       <Link href={l.href} className="text-white/80 transition hover:text-ocd-orange">
                         {l.label}

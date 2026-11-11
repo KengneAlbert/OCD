@@ -16,6 +16,7 @@ import {
   type EmailTemplateId,
 } from "./templates";
 import { teamDailyEmail } from "./daily";
+import { liveReviewEmail, liveToReviewEmail, subscriptionPaidEmail, subscriptionReminderEmail } from "./lives";
 
 const reservation = toReservationView({
   reference: "OCD-K7M2QX",
@@ -85,6 +86,16 @@ export function renderSample(id: EmailTemplateId): EmailContent {
         remindersFailed: 0,
         anomalies: 1,
       });
+    case "abonnement-paye":
+      return subscriptionPaidEmail({ firstName: "Kofi", paidUntil: "2027-01-02T10:00:00Z", amount: 5000 });
+    case "abonnement-rappel":
+      return subscriptionReminderEmail({ firstName: "Kofi", paidUntil: "2027-01-02T10:00:00Z" });
+    case "live-valide":
+      return liveReviewEmail({ firstName: "Kofi", approved: true });
+    case "live-refuse":
+      return liveReviewEmail({ firstName: "Kofi", approved: false, reason: "Pas en live" });
+    case "live-a-valider":
+      return liveToReviewEmail({ businessName: "Kofi Sneakers", platform: "TikTok", url: "https://www.tiktok.com/@kofi.sneakers/live", category: "Mode", country: "Côte d'Ivoire", endsLabel: "12h00" });
     case "candidature-recue":
       return candidatureReceivedEmail(candidature);
     case "candidature-equipe":

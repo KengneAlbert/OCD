@@ -167,50 +167,63 @@ export function HowItWorks() {
 
 export function PackagesPreview() {
   const highlighted = packages.filter((p) => p.highlighted).slice(0, 3);
+  const mode = (c: string[]) => (c.length === 2 ? "Studio ou distance" : c[0] === "presentiel" ? "Au studio" : "À distance");
   return (
     <Section eyebrow="04 — La grille" title={<>Un prix pour chaque <span className="accent">ambition.</span></>} description="Prix en FCFA, payés en ligne au moment de réserver (Mobile Money ou carte).">
-      <ul className="border-t border-foreground">
-        {highlighted.map((pkg, i) => (
-          <li key={pkg.id}>
-            <Link
-              href={`/reserver?package=${pkg.id}`}
-              className="group relative grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 overflow-hidden border-b border-foreground py-7 sm:grid-cols-12 sm:py-9"
-            >
-              <span aria-hidden className="absolute inset-0 translate-y-full bg-ocd-orange transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-y-0" />
-              <span className="relative font-mono text-xs text-muted-foreground transition-colors group-hover:text-ocd-black sm:col-span-1">0{i + 1}</span>
-              <span className="relative col-span-2 row-start-2 sm:col-span-5 sm:row-start-auto">
-                <span className="block text-3xl font-semibold tracking-tight transition-colors group-hover:text-ocd-black sm:text-5xl">
-                  {pkg.name}
-                  {pkg.popular && (
-                    <span className="accent ml-3 align-middle text-base text-accent-text transition-colors group-hover:text-ocd-black sm:text-xl">
-                      ★ populaire
-                    </span>
-                  )}
-                </span>
-                <span className="mt-1 block text-muted-foreground transition-colors group-hover:text-ocd-black/80">{pkg.tagline}</span>
-                <span className="mt-2 block font-mono text-[11px] tracking-wider text-muted-foreground uppercase transition-colors group-hover:text-ocd-black sm:hidden">
-                  {pkg.livesLabel} · {pkg.compatibleWith.length === 2 ? "Studio ou distance" : pkg.compatibleWith[0] === "presentiel" ? "Au studio" : "À distance"}
-                </span>
-              </span>
-              <span className="relative hidden font-mono text-xs tracking-wider text-muted-foreground uppercase transition-colors group-hover:text-ocd-black sm:col-span-3 sm:block">
-                {pkg.livesLabel} · {pkg.compatibleWith.length === 2 ? "Studio ou distance" : pkg.compatibleWith[0] === "presentiel" ? "Au studio" : "À distance"}
-              </span>
-              <span className="relative col-start-2 row-start-1 flex items-center justify-end gap-4 sm:col-span-3 sm:col-start-auto sm:row-start-auto">
-                <span className="text-right">
-                  <span className="block text-2xl font-semibold whitespace-nowrap transition-colors group-hover:text-ocd-black sm:text-3xl">{formatPrice(pkg.price)}</span>
+      <ul className="grid gap-4 md:grid-cols-3 md:items-stretch">
+        {highlighted.map((pkg) => {
+          const pop = pkg.popular;
+          return (
+            <li key={pkg.id}>
+              <article
+                className={cn(
+                  "relative flex h-full flex-col rounded-3xl p-7 transition duration-300 hover:-translate-y-1",
+                  pop ? "bg-ocd-black text-white shadow-[0_30px_60px_-30px_rgb(17_17_17/0.6)] dark:bg-white dark:text-ocd-black" : "border border-border bg-card",
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className={cn("font-mono text-[11px] tracking-[0.18em] uppercase", pop ? "text-white/60 dark:text-ocd-black/60" : "text-muted-foreground")}>
+                    {pkg.livesLabel} · {mode(pkg.compatibleWith)}
+                  </p>
+                  {pop && <span className="rounded-full bg-ocd-orange px-2.5 py-1 text-[11px] font-semibold text-ocd-black">Populaire</span>}
+                </div>
+
+                <h3 className="mt-5 text-2xl font-semibold tracking-tight">{pkg.name}</h3>
+                <p className={cn("mt-1.5 text-sm", pop ? "text-white/70 dark:text-ocd-black/70" : "text-muted-foreground")}>{pkg.tagline}</p>
+
+                <p className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="text-4xl font-semibold tracking-tight whitespace-nowrap">{formatPrice(pkg.price)}</span>
                   {pkg.originalPrice && (
-                    <s className="block text-sm text-muted-foreground transition-colors group-hover:text-ocd-black/70">{formatPrice(pkg.originalPrice)}</s>
+                    <s className={cn("text-sm", pop ? "text-white/50 dark:text-ocd-black/50" : "text-muted-foreground")}>{formatPrice(pkg.originalPrice)}</s>
                   )}
-                </span>
-                <span className="hidden size-12 shrink-0 items-center justify-center rounded-full border border-foreground/20 transition-all duration-500 group-hover:rotate-45 group-hover:border-ocd-black group-hover:bg-ocd-black group-hover:text-white sm:flex">
-                  <ArrowUpRight className="size-5" aria-hidden />
-                </span>
-              </span>
-            </Link>
-          </li>
-        ))}
+                </p>
+
+                <ul className={cn("mt-6 mb-8 space-y-2.5 border-t pt-6 text-sm", pop ? "border-white/15 dark:border-ocd-black/15" : "border-border")}>
+                  {pkg.includes.slice(0, 4).map((inc) => (
+                    <li key={inc} className="flex gap-2.5">
+                      <Check className={cn("mt-0.5 size-4 shrink-0", pop ? "text-ocd-orange" : "text-accent-text")} aria-hidden />
+                      <span className={pop ? "text-white/85 dark:text-ocd-black/85" : ""}>{inc}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={`/reserver?package=${pkg.id}`}
+                  className={cn(
+                    "mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition",
+                    pop ? "bg-ocd-orange text-ocd-black hover:bg-white dark:hover:bg-ocd-black dark:hover:text-white" : "bg-foreground text-background hover:opacity-90",
+                  )}
+                >
+                  Réserver
+                  <ArrowUpRight className="size-4" aria-hidden />
+                  <span className="sr-only">: {pkg.name}</span>
+                </Link>
+              </article>
+            </li>
+          );
+        })}
       </ul>
-      <div className="mt-10">
+      <div className="mt-10 flex justify-center">
         <PillLink href="/packages" variant="outline" size="md">
           Voir les {packages.length} packages et le comparatif
         </PillLink>

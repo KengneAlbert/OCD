@@ -42,10 +42,12 @@ export const siteConfig = {
   agency: { name: "REVOLUTION", href: "https://revolution.tg" },
 
   nav: [
+    { href: "/live", label: "Lives en direct" },
+    { href: "/marketplace", label: "Marketplace" },
     { href: "/packages", label: "Packages" },
     { href: "/comment-ca-marche", label: "Comment ça marche" },
     { href: "/studio", label: "Le studio" },
-    { href: "/faq", label: "FAQ" },
+    { href: "/recrutement", label: "Recrutement" },
     { href: "/contact", label: "Contact" },
   ],
 } as const;

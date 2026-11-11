@@ -61,9 +61,18 @@ export function PayButton({
   amountLabel,
   autoOpen = false,
   className,
+  sessionUrl = "/api/payments/session",
+  confirmUrl = "/api/payments/confirm",
+  successTitle = "Paiement reçu, ta réservation est validée !",
+  successText = "Ton créneau est à toi. Un email de confirmation t'a été envoyé.",
 }: {
-  token: string;
+  /** Jeton de réservation (absent pour l'abonnement, lié à la session de l'utilisateur). */
+  token?: string;
   amountLabel: string;
+  sessionUrl?: string;
+  confirmUrl?: string;
+  successTitle?: string;
+  successText?: string;
   /** Ouvre la fenêtre de paiement dès l'arrivée sur la page (après « Payer et réserver »). */
   autoOpen?: boolean;
   className?: string;
@@ -76,7 +85,7 @@ export function PayButton({
     async (chargeId: string) => {
       setPhase("confirming");
       try {
-        const res = await fetch("/api/payments/confirm", {
+        const res = await fetch(confirmUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token, chargeId }),
@@ -89,7 +98,7 @@ export function PayButton({
       }
       router.refresh();
     },
-    [token, router],
+    [token, router, confirmUrl],
   );
 
   const pay = async () => {
@@ -97,7 +106,7 @@ export function PayButton({
     setPhase("opening");
     try {
       const [res] = await Promise.all([
-        fetch("/api/payments/session", {
+        fetch(sessionUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
@@ -144,8 +153,8 @@ export function PayButton({
     return (
       <div role="status" className="rounded-3xl bg-emerald-500/10 p-6 text-center">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" aria-hidden />
-        <p className="mt-3 text-xl font-semibold">Paiement reçu, ta réservation est validée !</p>
-        <p className="mt-1 text-muted-foreground">Ton créneau est à toi. Un email de confirmation t&apos;a été envoyé.</p>
+        <p className="mt-3 text-xl font-semibold">{successTitle}</p>
+        <p className="mt-1 text-muted-foreground">{successText}</p>
       </div>
     );
   }

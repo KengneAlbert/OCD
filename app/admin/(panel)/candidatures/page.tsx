@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ListFilters } from "@/components/admin/forms";
+import { RecruitmentToggle } from "@/components/admin/recruitment-toggle";
 import { EmptyState, formatDateTime, PageTitle, Pagination, StatusBadge } from "@/components/admin/ui";
 import { parseCandidatureFilters } from "@/lib/admin/filters";
 import { listCandidatures, PAGE_SIZE } from "@/lib/db/admin-queries";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Candidatures" };
 
@@ -12,13 +14,16 @@ type Search = Record<string, string | undefined>;
 export default async function CandidaturesPage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
   const filters = parseCandidatureFilters(sp);
-  const { rows, count } = await listCandidatures(filters);
+  const [{ rows, count }, settings] = await Promise.all([listCandidatures(filters), getSettings()]);
   const qs = (patch: Search) =>
     `?${new URLSearchParams(Object.entries({ ...sp, ...patch }).filter((e): e is [string, string] => Boolean(e[1]))).toString()}`;
 
   return (
     <>
       <PageTitle eyebrow={`${count} au total`} title="Candidatures animatrices" />
+      <div className="mb-6">
+        <RecruitmentToggle open={settings.recrutementOuvert} />
+      </div>
       <ListFilters kind="candidature" />
 
       {rows.length === 0 ? (

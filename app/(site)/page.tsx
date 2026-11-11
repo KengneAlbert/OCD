@@ -1,4 +1,5 @@
 import { Hero } from "@/components/home/hero";
+import { LivesSection } from "@/components/home/lives-section";
 import { Manifesto } from "@/components/home/manifesto";
 import {
   BigMarquee,
@@ -22,6 +23,7 @@ export default function HomePage() {
       <HowItWorks />
       <PackagesPreview />
       <ForWho />
+      <LivesSection />
       <Vitrine />
       <FaqPreview />
       <FinalCta />

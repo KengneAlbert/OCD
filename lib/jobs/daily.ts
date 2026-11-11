@@ -5,6 +5,8 @@ import { releaseExpiredHolds } from "@/lib/db/holds";
 import { rowToReservationLike } from "@/lib/db/reservations";
 import type { ReservationRow } from "@/lib/db/types";
 import { teamDailyEmail } from "@/lib/emails/daily";
+import { subscriptionReminderEmail } from "@/lib/emails/lives";
+import { livesConfig } from "@/config/lives";
 import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
 import { reservationReminderEmail, toReservationView } from "@/lib/emails/templates";
 import { formatDateFr, formatSlotFr } from "@/lib/schedule";
@@ -17,6 +19,7 @@ export interface DailyJobResult {
   remindersFailed: number;
   todayLives: number;
   recapSent: boolean;
+  renewalReminders: number;
 }
 
 const dayKey = (d: Date) => d.toISOString().slice(0, 10); // Lomé = GMT
@@ -79,7 +82,44 @@ export async function runDailyJob(now = new Date()): Promise<DailyJobResult> {
     else remindersFailed += 1;
   }
 
-  // ─── 2. Récap équipe ───
+  // ─── 2. Abonnements qui se terminent bientôt (un seul rappel) ───
+  const soon = new Date(now.getTime() + livesConfig.renewalReminderDays * 86_400_000).toISOString();
+  const { data: ending } = await db
+    .from("subscribers")
+    .select("id, email, full_name, paid_until")
+    .eq("status", "actif")
+    .gt("paid_until", now.toISOString())
+    .lte("paid_until", soon);
+  let renewalReminders = 0;
+  if (ending?.length) {
+    const { data: reminded } = await db
+      .from("email_log")
+      .select("entity_id")
+      .eq("template", "abonnement-rappel")
+      .eq("status", "sent")
+      .gte("created_at", new Date(now.getTime() - (livesConfig.renewalReminderDays + 1) * 86_400_000).toISOString())
+      .in(
+        "entity_id",
+        ending.map((e) => e.id),
+      );
+    const skip = new Set((reminded ?? []).map((r) => r.entity_id as string));
+    for (const sub of ending) {
+      if (skip.has(sub.id)) continue;
+      const sent = await sendEmail(
+        {
+          template: "abonnement-rappel",
+          to: { email: sub.email as string, name: sub.full_name as string },
+          content: subscriptionReminderEmail({ firstName: String(sub.full_name).split(" ")[0] ?? "", paidUntil: sub.paid_until as string }),
+          entity: { type: "subscriber", id: sub.id as string },
+          actor: "Rappel automatique",
+        },
+        brevo,
+      );
+      if (sent.ok) renewalReminders += 1;
+    }
+  }
+
+  // ─── 3. Récap équipe ───
   const [todayRes, paidYesterday, anomalies] = await Promise.all([
     db.from("reservations").select("*").eq("live_date", today).in("status", [...LIVE_STATUSES, "realisee"]).order("slot_start"),
     db.from("payments").select("amount").eq("status", "succeeded").gte("paid_at", `${yesterday}T00:00:00Z`).lt("paid_at", `${today}T00:00:00Z`),
@@ -119,5 +159,5 @@ export async function runDailyJob(now = new Date()): Promise<DailyJobResult> {
     brevo,
   );
 
-  return { date: today, remindersSent, remindersSkipped, remindersFailed, todayLives: todayRows.length, recapSent: recap.ok };
+  return { date: today, remindersSent, remindersSkipped, remindersFailed, todayLives: todayRows.length, recapSent: recap.ok, renewalReminders };
 }

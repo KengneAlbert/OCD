@@ -161,6 +161,9 @@ Aperçu de tous les gabarits (desktop, mobile, texte brut) : **Admin → Emails*
 - **Réservations** : recherche (référence, nom, business, téléphone), filtres statut / type / dates, tri par date de live, export CSV (compatible Excel).
 - **Fiche réservation** : toutes les infos, boutons WhatsApp / appel / email, changement de statut avec email automatique au client, rappel J-1, notes internes, historique complet et emails envoyés.
 - **Candidatures** : même logique (statuts, emails, notes, historique).
+  - L'interrupteur **« Recrutement ouvert »**, en haut de la page, ajoute ou retire l'onglet « Recrutement » du menu et du pied de page.
+  - Recrutement fermé : `/recrutement` affiche « Pas de recrutement en ce moment » (non indexée), l'API refuse les candidatures (403) et la page sort du sitemap.
+  - Le réglage est stocké dans la table `app_settings` (migration `0007_reglages.sql`) et lu avec un cache invalidé à chaque changement depuis l'admin (`lib/settings.ts`).
 - **Journal** : toutes les actions (création, changement de statut, note, email, connexion, export) avec l'auteur et l'heure.
 
 Sécurité : le middleware redirige vers `/admin/connexion`, chaque page et action vérifie la session **et** la présence de l'email dans `ADMIN_EMAILS`. Les données ne sont lues qu'avec la clé service_role, côté serveur ; la clé publique ne donne accès à aucune table (RLS sans policy).
@@ -187,6 +190,46 @@ Réservation enregistrée → lien /paiement/<jeton secret> (page de confirmatio
 5. Après validation KYB, remplacer par la clé `sk_live_…` et déclarer le webhook live avec son propre secret.
 
 Les webhooks Swinmo ne sont **jamais renvoyés** : le retour navigateur (`/api/payments/confirm`) et le bouton **« Vérifier auprès de Swinmo »** de la fiche admin servent de rattrapage. Frais Swinmo : 2,5 % par paiement réussi, à la charge d'OCD Live (le net est visible dans l'admin). Les prix sont en FCFA (XOF) ; un client hors zone XOF paie dans sa devise, convertie par Swinmo.
+
+## Annuaire des lives en direct et abonnement vendeurs
+
+- **Visiteurs** :
+  - `/live` : nombre de vendeurs en live, « Mon pays » (détecté par l'en-tête `x-vercel-ip-country`, modifiable, mémorisé dans le cookie `ocd_pays`), liste des pays en live, lives « À la une ».
+  - `/live/[pays]` : tuiles de catégories avec le nombre de lives, puis tous les lives du pays.
+  - `/live/[pays]/[categorie]` : tuiles verticales 9:16 façon TikTok LIVE (image de fond par catégorie, cœurs qui montent, coupés si « réduire les animations »), WhatsApp et Partager (Web Share API, sinon WhatsApp). Images : `liveCover()` dans `config/live-categories.ts`.
+  - Les pages se rafraîchissent toutes les 60 s et sont indexables (titres « Lives business au Togo – Mode », sitemap des pays mis en avant).
+  - Les réservations OCD payées dont le créneau est en cours sont toujours « À la une ».
+- **Vendeurs** :
+  - `/connexion` (ou `/inscription`) : Google ou lien magique.
+  - `/moi` : profil (business, pays, ville, catégorie, WhatsApp, TikTok facultatif), abonnement **5 000 FCFA / 30 jours** payé via Swinmo (références `ABO-…`), historique des lives.
+  - `/je-suis-en-live` : coller le lien, pays et catégorie pré-remplis, puis « Envoyer ». **Uniquement TikTok** (liens tiktok.com/@compte/live et liens courts vm./vt.tiktok.com) ; le lien doit correspondre au compte TikTok du profil (obligatoire).
+  - L'envoi n'est possible que **pendant les créneaux de validation**. En dehors, le bouton est désactivé et un compte à rebours s'affiche.
+  - Un seul live à la fois par vendeur.
+- **Durée d'affichage** : un live validé disparaît à la fin du créneau + 1 h, ou quand le vendeur ou l'équipe touche « Terminé ». L'expiration est appliquée à la lecture, donc aucune tâche planifiée n'est nécessaire.
+- **Admin** :
+  - `/admin/lives` : file d'attente rechargée toutes les 15 s, avec un son quand un live arrive (bouton « Activer le son ») et le nombre en attente dans l'onglet. Chaque live a « Ouvrir le live », « Valider », et « Refuser » avec un motif en un tap.
+  - `/admin/abonnes` : liste des abonnés, « +30 j » (paiement hors ligne) et « Suspendre ».
+- **Réglages** :
+  - Créneaux : `config/validation-windows.ts` (8h–11h et 18h–21h, heure de Lomé).
+  - Catégories : `config/live-categories.ts`.
+  - Le reste : `config/lives.ts`.
+- **Tables** : migrations `0004_lives_abonnements.sql` et `0005_annuaire.sql`. Le rappel de renouvellement part 3 jours avant la fin, dans la tâche du matin.
+- **Google** : Supabase → Authentication → Providers → Google (Client ID / Secret d'un projet Google Cloud) ; ajouter `https://<domaine>/auth/callback` aux Redirect URLs (Authentication → URL Configuration). Les inscriptions doivent rester **activées** (abonnés) : l'accès admin reste limité par `ADMIN_EMAILS`.
+
+## Marketplace
+
+- **Public** :
+  - `/marketplace` : grille de produits et services, avec recherche (`q`), pays (`pays`), type (`type`) et catégorie (`categorie`), tous dans l'adresse.
+  - `/marketplace/[id]` : fiche produit avec « Commander sur WhatsApp » (message pré-rempli avec le nom, le prix et le lien), Partager, bandeau « En live maintenant » si le vendeur est en live, et les autres produits du vendeur. Open Graph avec la photo.
+- **Visibilité** : un produit est visible seulement si l'abonné est actif (abonnement payé, compte non suspendu), a un numéro WhatsApp, n'a pas masqué le produit, et que l'équipe ne l'a pas retiré.
+- **Vendeurs** (`/moi/produits`) :
+  - jusqu'à **12 produits** ;
+  - ajout en 3 champs (photo → prix → nom), avec type, catégorie et description facultatifs ;
+  - modifier, masquer, supprimer.
+  - Les photos sont compressées dans le navigateur (1200 px, JPEG) puis envoyées par Server Action dans le bucket Supabase Storage public `produits` (3 Mo max, JPG/PNG/WebP).
+- **Admin** (`/admin/marketplace`) : liste de tous les produits avec leur statut, Masquer / Réafficher / Supprimer.
+- **Réglages** : `config/marketplace.ts`.
+- **Table** : migration `0006_marketplace.sql`, qui crée aussi le bucket.
 
 ## Tâche du matin (Vercel Cron)
 

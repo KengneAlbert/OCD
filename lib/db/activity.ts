@@ -1,7 +1,7 @@
 import "server-only";
 import { getServiceClient } from "@/lib/supabase/admin";
 
-export type EntityType = "reservation" | "candidature" | "system";
+export type EntityType = "reservation" | "candidature" | "system" | "subscriber" | "live" | "product";
 
 export interface ActivityInput {
   entityType: EntityType;

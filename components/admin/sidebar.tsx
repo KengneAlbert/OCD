@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, CalendarCheck, CalendarRange, ExternalLink, LayoutDashboard, LogOut, Mail, Users } from "lucide-react";
+import { Activity, BadgeCheck, CalendarCheck, CalendarRange, ExternalLink, LayoutDashboard, LogOut, Mail, Radio, ShoppingBag, Users } from "lucide-react";
 import { signOutAction } from "@/lib/admin/actions";
 import { cn } from "@/lib/utils";
 
@@ -10,16 +10,19 @@ const NAV = [
   { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
   { href: "/admin/planning", label: "Planning", icon: CalendarRange },
   { href: "/admin/reservations", label: "Réservations", icon: CalendarCheck },
+  { href: "/admin/lives", label: "Lives", icon: Radio },
+  { href: "/admin/abonnes", label: "Abonnés", icon: BadgeCheck },
+  { href: "/admin/marketplace", label: "Marketplace", icon: ShoppingBag },
   { href: "/admin/candidatures", label: "Candidatures", icon: Users },
   { href: "/admin/emails", label: "Emails", icon: Mail },
   { href: "/admin/activite", label: "Journal", icon: Activity },
 ];
 
-export function AdminSidebar({ email, badges }: { email: string; badges: { reservations: number; candidatures: number } }) {
+export function AdminSidebar({ email, badges }: { email: string; badges: { reservations: number; candidatures: number; lives: number } }) {
   const pathname = usePathname();
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
   const badgeFor = (href: string) =>
-    href === "/admin/reservations" ? badges.reservations : href === "/admin/candidatures" ? badges.candidatures : 0;
+    href === "/admin/reservations" ? badges.reservations : href === "/admin/candidatures" ? badges.candidatures : href === "/admin/lives" ? badges.lives : 0;
 
   return (
     <aside className="sticky top-0 z-40 flex flex-col bg-ocd-black text-white lg:h-dvh lg:w-64 lg:shrink-0">

@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Award, Heart, MessageCircle, Sparkles, Users } from "lucide-react";
 import { LiveBadge } from "@/components/brand/live-badge";
 import { PageHeader, Section } from "@/components/layout/page-header";
 import { CandidatureForm } from "@/components/recruit/candidature-form";
+import { getSettings } from "@/lib/settings";
 
-export const metadata: Metadata = {
+const openMetadata: Metadata = {
   title: "Recrutement : animatrice / assistante live",
   description:
     "OCD Live recrute à Lomé une animatrice / assistante live pour accompagner les vendeurs en direct. Aucun diplôme exigé : on donne la chance à tous les talents.",
   alternates: { canonical: "/recrutement" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { recrutementOuvert } = await getSettings();
+  return recrutementOuvert ? openMetadata : { title: "Recrutement", robots: { index: false, follow: true } };
+}
 
 const missions = [
   "Accompagner en direct, depuis le studio, les vendeurs qui font leur live à distance",
@@ -25,7 +32,19 @@ const profile = [
   { icon: Heart, text: "Tu es sérieuse, ponctuelle et fiable" },
 ];
 
-export default function RecrutementPage() {
+export default async function RecrutementPage() {
+  const { recrutementOuvert } = await getSettings();
+  if (!recrutementOuvert) {
+    return (
+      <div className="mx-auto flex min-h-[60svh] max-w-xl flex-col items-center justify-center px-4 py-24 text-center">
+        <h1 className="text-4xl font-semibold tracking-tight">Pas de recrutement en ce moment.</h1>
+        <p className="mt-4 text-lg text-muted-foreground">Reviens bientôt : les prochaines offres seront publiées ici.</p>
+        <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-foreground px-6 font-semibold text-background hover:opacity-90">
+          Retour à l&apos;accueil
+        </Link>
+      </div>
+    );
+  }
   return (
     <>
       <PageHeader

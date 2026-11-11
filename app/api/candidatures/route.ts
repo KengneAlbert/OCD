@@ -5,12 +5,16 @@ import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
 import { candidatureLikeFromForm, candidatureReceivedEmail, candidatureTeamEmail, toCandidatureView } from "@/lib/emails/templates";
 import { resolveProvider, usesEmail } from "@/lib/notifications/provider";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
+import { getSettings } from "@/lib/settings";
 import { candidatureSchema } from "@/lib/validation/candidature";
 
 export const runtime = "nodejs";
 
 /** POST /api/candidatures : mêmes protections que les réservations, stockage + emails. */
 export async function POST(request: Request) {
+  if (!(await getSettings()).recrutementOuvert) {
+    return NextResponse.json({ error: "Le recrutement est fermé pour le moment." }, { status: 403 });
+  }
   const ip = getClientIp(request.headers);
   const limit = rateLimit(`candidature:${ip}`, 3);
   if (!limit.allowed) {

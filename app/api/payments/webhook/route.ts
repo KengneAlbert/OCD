@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applySubscriptionCharge, SUBSCRIPTION_REF_PREFIX } from "@/lib/db/lives";
 import { applyCharge } from "@/lib/db/payments";
 import { getSwinmoEnv, verifyWebhookSignature, type SwinmoCharge } from "@/lib/payments/swinmo";
 
@@ -44,7 +45,11 @@ export async function POST(request: Request) {
 
   if (event.event === "charge.succeeded" || event.event === "charge.failed") {
     try {
-      const result = await applyCharge(event.data as SwinmoCharge, "webhook");
+      const charge = event.data as SwinmoCharge;
+      // Abonnement des vendeurs (« ABO-… ») ou réservation de live (« OCD-… »).
+      const result = charge.reference.startsWith(SUBSCRIPTION_REF_PREFIX)
+        ? await applySubscriptionCharge(charge, "webhook")
+        : await applyCharge(charge, "webhook");
       return NextResponse.json({ received: true, result });
     } catch (error) {
       console.error("[payments.webhook]", error);

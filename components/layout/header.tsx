@@ -9,7 +9,10 @@ import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 
-export function Header() {
+export type NavItem = { href: string; label: string };
+
+/** `nav` : liens du menu (le layout retire « Recrutement » quand il est fermé). */
+export function Header({ nav = siteConfig.nav }: { nav?: readonly NavItem[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -58,7 +61,7 @@ export function Header() {
 
           <nav aria-label="Navigation principale" className="hidden lg:block">
             <ul className="flex items-center gap-0.5">
-              {siteConfig.nav.map((item) => (
+              {nav.map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
@@ -113,7 +116,7 @@ export function Header() {
           >
             <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto">
               <ul>
-                {[{ href: "/", label: "Accueil" }, ...siteConfig.nav].map((item, i) => (
+                {[{ href: "/", label: "Accueil" }, ...nav].map((item, i) => (
                   <li key={item.href} className="overflow-hidden border-b border-white/10">
                     <m.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ delay: 0.15 + i * 0.05, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
                       <Link
