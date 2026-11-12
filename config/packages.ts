@@ -18,7 +18,7 @@ export const packages: LivePackage[] = [
     id: "decouverte",
     name: "Live Découverte",
     tagline: "Ton premier live au studio, accompagné par la régie.",
-    price: 15000,
+    price: 10000,
     currency: "FCFA",
     liveDurationMinutes: 90,
     livesCount: 1,
