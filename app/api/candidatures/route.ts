@@ -3,7 +3,7 @@ import { siteConfig } from "@/config/site";
 import { insertCandidature } from "@/lib/db/reservations";
 import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
 import { candidatureLikeFromForm, candidatureReceivedEmail, candidatureTeamEmail, toCandidatureView } from "@/lib/emails/templates";
-import { resolveProvider, usesEmail } from "@/lib/notifications/provider";
+import { CANDIDATURE_PROVIDER, usesEmail } from "@/lib/notifications/provider";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { candidatureSchema } from "@/lib/validation/candidature";
@@ -43,7 +43,8 @@ export async function POST(request: Request) {
   const stored = await insertCandidature(parsed.data, { ip });
   if (stored && !stored.ok && stored.reason === "duplicate") return NextResponse.json({ ok: true, duplicate: true });
 
-  const provider = resolveProvider(process.env.NOTIFICATION_PROVIDER);
+  // Candidature : toujours enregistrée pour l'admin + email à l'équipe (plus de WhatsApp).
+  const provider = CANDIDATURE_PROVIDER;
   const brevo = usesEmail(provider) ? getBrevoEnv() : null;
   if (provider === "brevo" && !brevo && !stored?.ok) {
     return NextResponse.json({ error: "Service d'envoi indisponible. Contacte-nous sur WhatsApp." }, { status: 503 });

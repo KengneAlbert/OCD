@@ -13,5 +13,8 @@ export const usesEmail = (provider: NotificationProvider) => provider !== "whats
  */
 export const RESERVATION_PROVIDER: NotificationProvider = "brevo";
 
+/** Les candidatures arrivent dans l'admin (Supabase) + email à l'équipe ; plus d'envoi par WhatsApp. */
+export const CANDIDATURE_PROVIDER: NotificationProvider = "brevo";
+
 /** Provider vu par le navigateur (injecté au build depuis NOTIFICATION_PROVIDER). */
 export const clientProvider: NotificationProvider = resolveProvider(process.env.NEXT_PUBLIC_NOTIFICATION_PROVIDER);

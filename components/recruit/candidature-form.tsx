@@ -10,7 +10,7 @@ import { WhatsAppIcon } from "@/components/shared/icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, FieldError, Input, Textarea } from "@/components/ui/form-controls";
 import { DEFAULT_COUNTRY_CODE } from "@/config/countries";
-import { clientProvider, sendCandidature, usesWhatsApp } from "@/lib/notifications";
+import { CANDIDATURE_PROVIDER, sendCandidature, usesWhatsApp } from "@/lib/notifications";
 import { generateReference } from "@/lib/reference";
 import { AVAILABILITIES, LANGUAGES, candidatureFormSchema, type CandidatureForm as FormValues } from "@/lib/validation/candidature";
 import type { SendResult } from "@/types";
@@ -84,7 +84,7 @@ export function CandidatureForm() {
   } = useForm<FormValues>({ resolver: zodResolver(candidatureFormSchema), defaultValues, mode: "onTouched" });
 
   const hasExperience = watch("hasSalesExperience") === "oui";
-  const viaWhatsApp = usesWhatsApp(clientProvider);
+  const viaWhatsApp = usesWhatsApp(CANDIDATURE_PROVIDER);
 
   const onSubmit = async (data: FormValues) => {
     setError(null);
@@ -102,11 +102,11 @@ export function CandidatureForm() {
     return (
       <div role="status" className="space-y-5 rounded-[2rem] border border-border bg-card p-6 text-center glow-strong sm:p-10">
         <CheckCircle2 className="mx-auto size-14 text-whatsapp" aria-hidden />
-        <h3 className="text-2xl font-extrabold">Merci, ta candidature est prête !</h3>
+        <h3 className="text-2xl font-extrabold">{viaWhatsApp ? "Merci, ta candidature est prête !" : "Merci, ta candidature est envoyée !"}</h3>
         <p className="text-muted-foreground">
           {viaWhatsApp
             ? "Envoie le message dans WhatsApp pour finaliser. L'équipe OCD Live te recontacte pour un essai au studio."
-            : "Ta candidature est bien envoyée. L'équipe OCD Live te recontacte sur WhatsApp."}
+            : "L'équipe OCD Live l'a bien reçue et te recontacte sur WhatsApp pour un essai au studio."}
         </p>
         <p className="font-display text-lg font-bold">
           Référence : <span className="text-accent-text">{result.reference}</span>

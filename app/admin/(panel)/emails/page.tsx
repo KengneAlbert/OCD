@@ -5,7 +5,6 @@ import { EmptyState, formatDateTime, PageTitle, Pagination, Panel } from "@/comp
 import { listEmailLog } from "@/lib/db/admin-queries";
 import { getBrevoEnv } from "@/lib/emails/send";
 import { EMAIL_TEMPLATES, type EmailTemplateId } from "@/lib/emails/templates";
-import { resolveProvider, usesEmail } from "@/lib/notifications/provider";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Emails" };
@@ -15,7 +14,6 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
   const page = Number(sp.page) || 1;
   const status = sp.status === "failed" || sp.status === "sent" ? sp.status : undefined;
   const { rows, count } = await listEmailLog(page, status);
-  const provider = resolveProvider(process.env.NOTIFICATION_PROVIDER);
   const brevo = getBrevoEnv();
   const label = (t: string) => EMAIL_TEMPLATES[t as EmailTemplateId]?.label ?? t;
 
@@ -26,14 +24,11 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
       <div
         className={cn(
           "mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-3xl p-5 text-sm",
-          brevo && usesEmail(provider) ? "bg-emerald-500/10" : "bg-ocd-cream dark:bg-white/5",
+          brevo ? "bg-emerald-500/10" : "bg-ocd-cream dark:bg-white/5",
         )}
       >
         <span className="font-semibold">{brevo ? "Brevo est configuré" : "Brevo n'est pas configuré"}</span>
-        <span className="text-muted-foreground">
-          NOTIFICATION_PROVIDER = <code className="font-mono">{provider}</code>
-          {!usesEmail(provider) && " · les emails automatiques sont désactivés (passer à brevo ou both)"}
-        </span>
+        <span className="text-muted-foreground">{brevo ? "Emails automatiques actifs (réservations, candidatures, lives)." : "Aucun email automatique n'est envoyé."}</span>
         {brevo && <span className="text-muted-foreground">Expéditeur : {brevo.senderEmail} · Équipe : {brevo.teamEmail}</span>}
       </div>
 

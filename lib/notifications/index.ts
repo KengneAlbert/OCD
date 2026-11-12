@@ -1,7 +1,7 @@
 /**
  * Couche d'abstraction des notifications (côté navigateur).
  *
- * Les réservations partent uniquement par email (RESERVATION_PROVIDER = brevo).
+ * Réservations et candidatures partent uniquement vers l'admin + email (provider « brevo »).
  * Chaque réservation / candidature est TOUJOURS envoyée à l'API, qui
  * l'enregistre dans Supabase (si configuré) et envoie les emails Brevo
  * selon NOTIFICATION_PROVIDER :
@@ -16,9 +16,9 @@
 import { siteConfig } from "@/config/site";
 import { buildCandidatureMessage, buildReservationMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import type { Candidature, NotificationProvider, Reservation, SendResult } from "@/types";
-import { clientProvider, RESERVATION_PROVIDER, usesEmail, usesWhatsApp } from "./provider";
+import { CANDIDATURE_PROVIDER, clientProvider, RESERVATION_PROVIDER, usesEmail, usesWhatsApp } from "./provider";
 
-export { clientProvider, RESERVATION_PROVIDER, usesEmail, usesWhatsApp };
+export { CANDIDATURE_PROVIDER, clientProvider, RESERVATION_PROVIDER, usesEmail, usesWhatsApp };
 
 interface SendOptions {
   provider?: NotificationProvider;
@@ -103,5 +103,5 @@ export function sendReservation(reservation: Reservation, options: SendOptions =
 }
 
 export function sendCandidature(candidature: Candidature, options: SendOptions = {}): Promise<SendResult> {
-  return dispatch(buildCandidatureMessage(candidature), "/api/candidatures", candidature, options);
+  return dispatch(buildCandidatureMessage(candidature), "/api/candidatures", candidature, { provider: CANDIDATURE_PROVIDER, ...options });
 }

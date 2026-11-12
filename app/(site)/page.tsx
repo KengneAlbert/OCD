@@ -10,8 +10,11 @@ import {
   LiveFormats,
   PackagesPreview,
 } from "@/components/home/sections";
-import { Vitrine } from "@/components/home/vitrine";
+import { MarketplaceSection } from "@/components/home/marketplace-section";
 import { JsonLd, launchEventJsonLd } from "@/components/seo/json-ld";
+
+/** Lives et produits changent souvent : page régénérée toutes les 5 minutes. */
+export const revalidate = 300;
 
 export default function HomePage() {
   return (
@@ -24,7 +27,7 @@ export default function HomePage() {
       <PackagesPreview />
       <ForWho />
       <LivesSection />
-      <Vitrine />
+      <MarketplaceSection />
       <FaqPreview />
       <FinalCta />
       <JsonLd data={launchEventJsonLd} />

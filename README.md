@@ -38,7 +38,6 @@ npm run dev                  # http://localhost:3000
 | ----------------------------- | -------------------------- | ----------------------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL`        | `https://ocdlive.com`      | URL publique (SEO, sitemap, Open Graph)                           |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | `22890123456`              | Numéro qui reçoit les réservations (**sans `+` ni espaces**)      |
-| `NOTIFICATION_PROVIDER`       | `whatsapp`                 | Candidatures uniquement : `whatsapp`, `brevo` ou `both` (les réservations partent toujours par email) |
 | `BREVO_API_KEY`               | `xkeysib-…`                | Clé API Brevo (phase 2)                                           |
 | `BREVO_SENDER_EMAIL`          | `reservations@ocdlive.com` | Expéditeur **validé** dans Brevo                                  |
 | `OCD_TEAM_EMAIL`              | `equipe@ocdlive.com`       | Adresse de l'équipe qui reçoit les réservations                   |
@@ -51,7 +50,7 @@ npm run dev                  # http://localhost:3000
 | `SWINMO_WEBHOOK_SECRET`       | `…`                        | Secret du webhook Swinmo (vérification de signature)              |
 | `CRON_SECRET`                 | chaîne aléatoire (≥ 16)    | Protège la tâche du matin `/api/cron/daily` (envoyé par Vercel Cron) |
 
-> ⚠️ Les variables `NEXT_PUBLIC_*` et `NOTIFICATION_PROVIDER` sont lues **au build** : après modification sur Vercel, relancer un déploiement.
+> ⚠️ Les variables `NEXT_PUBLIC_*` sont lues **au build** : après modification sur Vercel, relancer un déploiement.
 
 ## Arborescence
 
@@ -128,7 +127,7 @@ sendReservation(reservation)              lib/notifications/index.ts
  └─ (pas de WhatsApp : les réservations partent uniquement par email)
 ```
 
-**Les réservations sont envoyées uniquement par email** (`RESERVATION_PROVIDER = "brevo"` dans `lib/notifications/provider.ts`) : l'email du client est obligatoire, et Brevo **doit** être configuré en production (sinon la réservation n'est acceptée que si Supabase l'a enregistrée). `NOTIFICATION_PROVIDER` ne règle plus que les **candidatures** (WhatsApp, email ou les deux). Les créneaux déjà réservés sont lus via `GET /api/availability` et affichés « Complet » dans le tunnel.
+**Les réservations sont envoyées uniquement par email** (`RESERVATION_PROVIDER = "brevo"` dans `lib/notifications/provider.ts`) : l'email du client est obligatoire, et Brevo **doit** être configuré en production (sinon la réservation n'est acceptée que si Supabase l'a enregistrée). Les **candidatures** suivent le même chemin (`CANDIDATURE_PROVIDER = "brevo"`) : enregistrées dans Supabase (admin → Candidatures, avec le compteur dans le menu) et email à l'équipe si Brevo est configuré ; plus d'envoi par WhatsApp. Les créneaux déjà réservés sont lus via `GET /api/availability` et affichés « Complet » dans le tunnel.
 
 ### Brancher Supabase (stockage + admin)
 1. Créer un projet sur [Supabase](https://supabase.com).
@@ -139,7 +138,7 @@ sendReservation(reservation)              lib/notifications/index.ts
 ### Activer Brevo (emails)
 1. Créer un compte [Brevo](https://www.brevo.com), valider l'expéditeur et le domaine (`Senders, Domains & Dedicated IPs`, enregistrements DKIM / DMARC) et générer une clé API (`SMTP & API`).
 2. Renseigner `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `OCD_TEAM_EMAIL`.
-3. Redéployer. Les réservations partent alors par email. Pour les candidatures, choisir `NOTIFICATION_PROVIDER=brevo` (email) ou `both`.
+3. Redéployer. Les réservations et les candidatures partent alors aussi par email.
 
 ### Emails envoyés (`lib/emails/templates.ts`)
 | Email | Destinataire | Déclencheur |
