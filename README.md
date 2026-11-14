@@ -175,11 +175,25 @@ Protections de l'API : validation zod côté serveur, vérification du créneau,
 Réservation enregistrée → lien /paiement/<jeton secret> (page de confirmation + emails)
   └─ « Payer » → POST /api/payments/session  (montant lu en base, jamais dans le navigateur)
        └─ modale Swinmo (inline.js) : Mobile Money (18 pays) ou carte Visa / Mastercard (config/payment-methods.ts)
-            ├─ onSuccess → POST /api/payments/confirm → GET /v1/charges/:id chez Swinmo
-            └─ webhook charge.succeeded / charge.failed → POST /api/payments/webhook (signature HMAC vérifiée)
-                 └─ applyCharge() : contrôle montant + devise + référence, une seule fois
-                      → réservation « Payée » + email « Paiement reçu » + journal
+            ├─ onSuccess → POST /api/payments/confirm ──────────────┐
+            ├─ webhook → POST /api/payments/webhook                 │  verifyTransactionWithProvider(chargeId)
+            │    (signature HMAC + référence connue, puis 200)      ├─▶ GET /v1/charges/:id (clé secrète) = seule source de vérité
+            └─ toutes les 5 min → /api/cron/payments (rapprochement)┘    → montant ≥ attendu, devise, référence, une seule fois
+                                                                          → réservation « Payée » / abonnement prolongé + emails
 ```
+
+**Règles de sécurité** (`lib/payments/verify.ts`, `lib/payments/rules.ts`, tests dans `tests/payment-security.test.ts`) :
+- la tentative est enregistrée en base **avant** l'appel à Swinmo (référence unique, montant lu en base) ;
+- ni le navigateur ni le corps d'un webhook (même signé) ne font foi : chaque charge est **relue** chez Swinmo ;
+- webhook : signature vérifiée (temps constant, 5 min max), référence inconnue → 404 + journal, réponse immédiate ;
+- montant payé ≥ montant attendu (sur `amount`, jamais `payer_amount`) et même devise ; sinon statut `amount_mismatch`, aucun accès, alerte au journal ;
+- idempotence (mises à jour conditionnelles) ; un statut final ne revient jamais en arrière ;
+- statut « Payée » mis à la main dans l'admin = paiement hors ligne, marqué « MANUEL » dans le journal.
+
+**Tâche des paiements** (`/api/cron/payments`, toutes les 5 min) : libère les créneaux non payés, rapproche les tentatives `open` / `processing` avec Swinmo (webhook perdu), marque les sessions expirées, envoie les relances :
+- réservations : 5 min (« termine ton paiement »), 1 h, 1 j, 3 j (« créneau libéré, réserve à nouveau ») ; arrêt si payé ou si un autre live a été payé ;
+- abonnements : 5 min, 1 h, 1 j, 3 j, 7 j ; arrêt à 14 jours, si l'abonnement est actif ou si une tentative plus récente existe.
+Mise en place : exécuter `supabase/cron/payments.sql` dans Supabase → SQL Editor (adresse du site et `CRON_SECRET` rangés dans Vault).
 
 **Mise en place**
 1. Exécuter `supabase/migrations/0002_payments.sql` (table `payments` + jeton de paiement sur chaque réservation).
@@ -188,7 +202,7 @@ Réservation enregistrée → lien /paiement/<jeton secret> (page de confirmatio
 4. Tester en sandbox : un numéro finissant par **55** échoue (fonds insuffisants), par **99** échoue (PIN refusé), tout autre numéro réussit.
 5. Après validation KYB, remplacer par la clé `sk_live_…` et déclarer le webhook live avec son propre secret.
 
-Les webhooks Swinmo ne sont **jamais renvoyés** : le retour navigateur (`/api/payments/confirm`) et le bouton **« Vérifier auprès de Swinmo »** de la fiche admin servent de rattrapage. Frais Swinmo : 2,5 % par paiement réussi, à la charge d'OCD Live (le net est visible dans l'admin). Les prix sont en FCFA (XOF) ; un client hors zone XOF paie dans sa devise, convertie par Swinmo.
+Les webhooks Swinmo ne sont **jamais renvoyés** : la tâche de rapprochement (toutes les 5 min), le retour navigateur et le bouton **« Vérifier auprès de Swinmo »** de la fiche admin servent de rattrapage. Frais Swinmo : 2,5 % par paiement réussi, à la charge d'OCD Live (le net est visible dans l'admin). Les prix sont en FCFA (XOF) ; un client hors zone XOF paie dans sa devise, convertie par Swinmo.
 
 ## Annuaire des lives en direct et abonnement vendeurs
 
