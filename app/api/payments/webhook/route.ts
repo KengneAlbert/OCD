@@ -1,23 +1,30 @@
 import { NextResponse } from "next/server";
-import { applySubscriptionCharge, SUBSCRIPTION_REF_PREFIX } from "@/lib/db/lives";
-import { applyCharge } from "@/lib/db/payments";
-import { getSwinmoEnv, verifyWebhookSignature, type SwinmoCharge } from "@/lib/payments/swinmo";
+import { logActivity } from "@/lib/db/activity";
+import { defer } from "@/lib/payments/defer";
+import { CHARGE_ID_RE } from "@/lib/payments/rules";
+import { getSwinmoEnv, verifyWebhookSignature } from "@/lib/payments/swinmo";
+import { isKnownReference, verifyTransactionWithProvider } from "@/lib/payments/verify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 interface WebhookEvent {
-  id: string;
-  event: "charge.succeeded" | "charge.failed" | "ping" | string;
-  environment: "test" | "live";
-  created_at: number;
-  data: SwinmoCharge | { object: "ping" };
+  id?: string;
+  event?: string;
+  environment?: string;
+  data?: { object?: string; id?: unknown; reference?: unknown };
 }
 
 /**
- * POST /api/payments/webhook — URL à déclarer dans le tableau de bord Swinmo Pay
+ * POST /api/payments/webhook — URL déclarée dans le tableau de bord Swinmo Pay
  * (Développeurs → Webhooks), une par environnement, avec son secret.
- * Signature vérifiée sur le corps BRUT ; réponse 2xx rapide (< 10 s).
+ *
+ * Le webhook n'est qu'un SIGNAL :
+ * 1. signature HMAC vérifiée sur le corps brut (temps constant, 5 min max) — sinon 400 ;
+ * 2. la référence doit avoir été créée par notre système — sinon 404 + journal ;
+ * 3. réponse 200 immédiate, puis la charge est RELUE chez Swinmo (GET /v1/charges/:id)
+ *    et seules ces données sont appliquées (jamais le corps du webhook, même signé).
+ * Swinmo n'envoie chaque événement qu'une fois : la tâche de rapprochement rattrape les pertes.
  */
 export async function POST(request: Request) {
   const env = getSwinmoEnv();
@@ -38,25 +45,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON invalide." }, { status: 400 });
   }
 
-  // Un événement d'un autre environnement (ex. test reçu sur la prod) est ignoré.
-  if (event.environment !== env.environment || event.data.object !== "charge") {
+  // « ping » du tableau de bord, autre environnement, événement inconnu : accusé de réception, rien d'autre.
+  if (event.data?.object !== "charge" || (event.event !== "charge.succeeded" && event.event !== "charge.failed")) {
     return NextResponse.json({ received: true });
   }
+  if (event.environment !== env.environment) return NextResponse.json({ received: true, ignored: "environment" });
 
-  if (event.event === "charge.succeeded" || event.event === "charge.failed") {
-    try {
-      const charge = event.data as SwinmoCharge;
-      // Abonnement des vendeurs (« ABO-… ») ou réservation de live (« OCD-… »).
-      const result = charge.reference.startsWith(SUBSCRIPTION_REF_PREFIX)
-        ? await applySubscriptionCharge(charge, "webhook")
-        : await applyCharge(charge, "webhook");
-      return NextResponse.json({ received: true, result });
-    } catch (error) {
-      console.error("[payments.webhook]", error);
-      // 500 : visible dans le tableau de bord Swinmo. Le rattrapage reste possible depuis l'admin.
-      return NextResponse.json({ error: "Traitement impossible." }, { status: 500 });
-    }
+  const chargeId = event.data.id;
+  if (typeof chargeId !== "string" || !CHARGE_ID_RE.test(chargeId)) {
+    return NextResponse.json({ error: "Charge invalide." }, { status: 400 });
   }
 
+  // ID interne : la tentative doit exister dans NOTRE base.
+  const reference = event.data.reference;
+  if (!(await isKnownReference(reference))) {
+    await logActivity({
+      entityType: "system",
+      action: "payment_anomaly",
+      message: `⚠️ Webhook rejeté : référence inconnue (${String(reference).slice(0, 80)}, charge ${chargeId}).`,
+    });
+    return NextResponse.json({ error: "Transaction inconnue." }, { status: 404 });
+  }
+
+  // Réponse rapide ; la vérification chez Swinmo et les emails se font juste après.
+  await defer(() => verifyTransactionWithProvider(chargeId, "webhook", { expectReference: reference as string }));
   return NextResponse.json({ received: true });
 }

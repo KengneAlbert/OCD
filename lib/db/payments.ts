@@ -125,10 +125,10 @@ export async function markPaymentExpired(id: string): Promise<void> {
 export type ApplyResult = "fulfilled" | "already" | "failed" | "processing" | "ignored" | "mismatch";
 
 /**
- * Applique l'état d'une charge Swinmo (webhook, retour navigateur ou vérification admin).
+ * Applique une charge Swinmo RELUE chez Swinmo : à appeler uniquement via verifyTransactionWithProvider (lib/payments/verify.ts).
  * Idempotent : la réservation n'est passée « Payée » et l'email envoyé qu'une seule fois.
  */
-export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "retour client" | "vérification admin"): Promise<ApplyResult> {
+export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "retour client" | "vérification admin" | "rapprochement"): Promise<ApplyResult> {
   const db = getServiceClient();
   if (!db) return "ignored";
 

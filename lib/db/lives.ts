@@ -320,7 +320,7 @@ export async function startSubscriptionPayment(sub: SubscriberRow): Promise<{ se
   return { sessionId: session.id };
 }
 
-/** Applique une charge Swinmo d'abonnement (webhook ou retour navigateur). Idempotent. */
+/** Applique une charge d'abonnement RELUE chez Swinmo (via verifyTransactionWithProvider uniquement). Idempotent. */
 export async function applySubscriptionCharge(charge: SwinmoCharge, source: string): Promise<ApplyResult> {
   const db = getServiceClient();
   if (!db) return "ignored";

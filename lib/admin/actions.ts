@@ -236,11 +236,12 @@ export async function updateCandidatureStatusAction(_: ActionState, formData: Fo
 export async function verifyPaymentsAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const { listPayments, applyCharge, markPaymentExpired } = await import("@/lib/db/payments");
-  const { getCharge, getSession, findChargeByReference, isPaymentEnabled } = await import("@/lib/payments/swinmo");
+  const { listPayments, markPaymentExpired } = await import("@/lib/db/payments");
+  const { getSession, findChargeByReference, isPaymentEnabled } = await import("@/lib/payments/swinmo");
+  const { verifyTransactionWithProvider } = await import("@/lib/payments/verify");
   if (!isPaymentEnabled()) return { ok: false, message: "Swinmo Pay n'est pas configuré." };
 
-  const pending = (await listPayments(id)).filter((p) => p.status !== "succeeded" && p.status !== "failed");
+  const pending = (await listPayments(id)).filter((p) => p.status === "open" || p.status === "processing" || p.status === "expired");
   if (pending.length === 0) return { ok: true, message: "Aucune tentative en attente à vérifier." };
 
   const results: string[] = [];
@@ -256,13 +257,19 @@ export async function verifyPaymentsAction(_: ActionState, formData: FormData): 
           continue;
         }
       }
-      const charge = chargeId ? await getCharge(chargeId) : await findChargeByReference(p.reference);
-      if (!charge) {
+      if (!chargeId) chargeId = (await findChargeByReference(p.reference))?.id ?? null;
+      if (!chargeId) {
         results.push(`${p.reference} : aucun paiement lancé pour l'instant`);
         continue;
       }
-      const r = await applyCharge(charge, "vérification admin");
-      results.push(`${p.reference} : ${charge.status === "succeeded" ? "payé" : charge.status === "failed" ? "échoué" : "en cours"}${r === "mismatch" ? " (incohérent)" : ""}`);
+      // Relecture chez Swinmo + application par le service unique.
+      const outcome = await verifyTransactionWithProvider(chargeId, "vérification admin");
+      if (!outcome.ok) {
+        results.push(`${p.reference} : non vérifiable (${outcome.reason})`);
+        continue;
+      }
+      const { charge, result: r } = outcome;
+      results.push(`${p.reference} : ${charge.status === "succeeded" ? "payé" : charge.status === "failed" ? "échoué" : "en cours"}${r === "mismatch" ? " (montant incohérent)" : ""}`);
     } catch (e) {
       results.push(`${p.reference} : erreur (${e instanceof Error ? e.message : "inconnue"})`);
     }
