@@ -297,25 +297,37 @@ export async function startSubscriptionPayment(sub: SubscriberRow): Promise<{ se
   const env = getSwinmoEnv();
   if (!db || !env) throw new Error("Paiement indisponible.");
   const reference = `${SUBSCRIPTION_REF_PREFIX}${randomBytes(4).toString("hex").toUpperCase()}`;
-  const session = await createCheckoutSession({
-    amount: livesConfig.subscriptionPrice,
-    currency: "XOF",
-    reference,
-    description: `OCD Live · Abonnement annuaire ${livesConfig.subscriptionDays} jours · ${sub.business_name}`,
-    country: XOF_COUNTRIES.includes(sub.country) ? sub.country : undefined,
-    customer: { name: sub.full_name, email: sub.email, phone_number: sub.phone_e164 ?? undefined },
-    metadata: { subscriber_id: sub.id, kind: "abonnement" },
-    expiresInMinutes: 30,
-  });
-  const { error } = await db.from("subscription_payments").insert({
-    subscriber_id: sub.id,
-    environment: env.environment,
-    session_id: session.id,
-    reference,
-    amount: livesConfig.subscriptionPrice,
-    currency: "XOF",
-  });
-  if (error) console.error("[subscription_payments.insert]", error.message);
+
+  // 1. Tentative enregistrée AVANT l'appel à Swinmo (jamais de paiement orphelin).
+  const { data: payment, error } = await db
+    .from("subscription_payments")
+    .insert({ subscriber_id: sub.id, environment: env.environment, reference, amount: livesConfig.subscriptionPrice, currency: "XOF" })
+    .select("id")
+    .single();
+  if (error || !payment) {
+    console.error("[subscription_payments.insert]", error?.message);
+    throw new Error("Enregistrement du paiement impossible.");
+  }
+
+  // 2. Session Swinmo, puis rattachement de son identifiant.
+  let session: Awaited<ReturnType<typeof createCheckoutSession>>;
+  try {
+    session = await createCheckoutSession({
+      amount: livesConfig.subscriptionPrice,
+      currency: "XOF",
+      reference,
+      description: `OCD Live · Abonnement annuaire ${livesConfig.subscriptionDays} jours · ${sub.business_name}`,
+      country: XOF_COUNTRIES.includes(sub.country) ? sub.country : undefined,
+      customer: { name: sub.full_name, email: sub.email, phone_number: sub.phone_e164 ?? undefined },
+      metadata: { subscriber_id: sub.id, kind: "abonnement", payment_id: payment.id },
+      expiresInMinutes: 30,
+    });
+  } catch (e) {
+    await db.from("subscription_payments").update({ status: "expired", failure_reason: "session_not_created" }).eq("id", payment.id);
+    throw e;
+  }
+  const { error: linkError } = await db.from("subscription_payments").update({ session_id: session.id }).eq("id", payment.id);
+  if (linkError) console.error("[subscription_payments.link]", linkError.message);
   await logActivity({ entityType: "subscriber", entityId: sub.id, action: "payment_started", message: "Paiement de l'abonnement ouvert.", actor: sub.email });
   return { sessionId: session.id };
 }
@@ -324,9 +336,8 @@ export async function startSubscriptionPayment(sub: SubscriberRow): Promise<{ se
 export async function applySubscriptionCharge(charge: SwinmoCharge, source: string): Promise<ApplyResult> {
   const db = getServiceClient();
   if (!db) return "ignored";
-  let q = db.from("subscription_payments").select("*");
-  q = charge.checkout_session_id ? q.eq("session_id", charge.checkout_session_id) : q.eq("reference", charge.reference);
-  const { data: payment } = await q.maybeSingle<{ id: string; subscriber_id: string; reference: string; amount: number; currency: string }>();
+  // Recherche par référence : unique et enregistrée avant l'appel à Swinmo.
+  const { data: payment } = await db.from("subscription_payments").select("*").eq("reference", charge.reference).maybeSingle<{ id: string; subscriber_id: string; reference: string; amount: number; currency: string }>();
   if (!payment) return "ignored";
 
   if (charge.reference !== payment.reference || charge.amount !== payment.amount || charge.currency !== payment.currency) {

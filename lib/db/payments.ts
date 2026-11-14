@@ -84,27 +84,37 @@ export async function startPayment(row: ReservationRow): Promise<{ sessionId: st
 
   // Référence unique par tentative (Swinmo refuse une référence déjà liée à une charge en cours ou réussie).
   const reference = `${row.reference}-${randomBytes(3).toString("hex").toUpperCase()}`;
-  const session = await createCheckoutSession({
-    amount: row.package_price,
-    currency: "XOF",
-    reference,
-    description: `OCD Live · ${row.package_name} · ${row.reference}`,
-    country: XOF_COUNTRIES.includes(row.phone_country) ? row.phone_country : undefined,
-    customer: { name: row.full_name, email: row.email ?? undefined, phone_number: row.phone_e164 },
-    metadata: { reservation_id: row.id, reservation_reference: row.reference },
-    expiresInMinutes: PAYMENT_SESSION_MINUTES,
-  });
 
-  const { error } = await db.from("payments").insert({
-    reservation_id: row.id,
-    environment: env.environment,
-    session_id: session.id,
-    reference,
-    status: "open",
-    amount: row.package_price,
-    currency: "XOF",
-  });
-  if (error) console.error("[payments.insert]", error.message);
+  // 1. La tentative est enregistrée AVANT l'appel à Swinmo : un paiement ne peut jamais être orphelin.
+  const { data: payment, error } = await db
+    .from("payments")
+    .insert({ reservation_id: row.id, environment: env.environment, reference, status: "open", amount: row.package_price, currency: "XOF" })
+    .select("id")
+    .single();
+  if (error || !payment) {
+    console.error("[payments.insert]", error?.message);
+    throw new Error("Enregistrement du paiement impossible.");
+  }
+
+  // 2. Session Swinmo, puis rattachement de son identifiant.
+  let session: Awaited<ReturnType<typeof createCheckoutSession>>;
+  try {
+    session = await createCheckoutSession({
+      amount: row.package_price,
+      currency: "XOF",
+      reference,
+      description: `OCD Live · ${row.package_name} · ${row.reference}`,
+      country: XOF_COUNTRIES.includes(row.phone_country) ? row.phone_country : undefined,
+      customer: { name: row.full_name, email: row.email ?? undefined, phone_number: row.phone_e164 },
+      metadata: { reservation_id: row.id, reservation_reference: row.reference, payment_id: payment.id },
+      expiresInMinutes: PAYMENT_SESSION_MINUTES,
+    });
+  } catch (e) {
+    await db.from("payments").update({ status: "expired", failure_reason: "session_not_created" }).eq("id", payment.id);
+    throw e;
+  }
+  const { error: linkError } = await db.from("payments").update({ session_id: session.id }).eq("id", payment.id);
+  if (linkError) console.error("[payments.link]", linkError.message); // la référence suffit pour retrouver la tentative
 
   await logActivity({
     entityType: "reservation",
@@ -132,9 +142,8 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
   const db = getServiceClient();
   if (!db) return "ignored";
 
-  let query = db.from("payments").select("*");
-  query = charge.checkout_session_id ? query.eq("session_id", charge.checkout_session_id) : query.eq("reference", charge.reference);
-  const { data: payment } = await query.maybeSingle<PaymentRow>();
+  // Recherche par référence : unique et enregistrée avant l'appel à Swinmo.
+  const { data: payment } = await db.from("payments").select("*").eq("reference", charge.reference).maybeSingle<PaymentRow>();
   if (!payment) return "ignored";
 
   // Contrôles d'intégrité exigés par Swinmo : montant, devise, référence.
