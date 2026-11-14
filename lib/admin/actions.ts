@@ -104,8 +104,12 @@ export async function updateReservationStatusAction(_: ActionState, formData: Fo
     entityType: "reservation",
     entityId: id,
     action: "status_changed",
-    message: `Statut : ${reservationStatusMeta[row.status].label} → ${reservationStatusMeta[status].label}${note ? ` · « ${note} »` : ""}`,
-    meta: { from: row.status, to: status, note },
+    // « Payée » à la main = paiement hors ligne (espèces…) : clairement distingué d'un paiement vérifié chez Swinmo.
+    message:
+      status === "payee"
+        ? `💵 Statut : ${reservationStatusMeta[row.status].label} → Payée · MANUEL (paiement hors ligne, non vérifié chez Swinmo)${note ? ` · « ${note} »` : ""}`
+        : `Statut : ${reservationStatusMeta[row.status].label} → ${reservationStatusMeta[status].label}${note ? ` · « ${note} »` : ""}`,
+    meta: { from: row.status, to: status, note, ...(status === "payee" ? { manual_payment: true } : {}) },
     actor: admin.email,
   });
 
