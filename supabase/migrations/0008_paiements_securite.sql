@@ -27,3 +27,7 @@ alter table public.reservations
 -- Tâche de rapprochement : tentatives non finales.
 create index if not exists payments_pending_idx on public.payments (created_at) where status in ('open', 'processing');
 create index if not exists subscription_payments_pending_idx on public.subscription_payments (created_at) where status in ('open', 'processing');
+
+-- Les tentatives antérieures à cette migration ne sont pas relancées (pas de rafale d'emails au démarrage).
+update public.reservations set reminder_count = 4 where reminder_count = 0 and status in ('nouvelle', 'expiree');
+update public.subscription_payments set reminder_count = 5 where reminder_count = 0 and status <> 'succeeded';
