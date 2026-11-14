@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { siteConfig } from "@/config/site";
 import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
+import { reservationPaymentEmail } from "@/lib/emails/payments";
 import { reservationPaidEmail, reservationTeamEmail, toReservationView } from "@/lib/emails/templates";
 import { checkCharge } from "@/lib/payments/rules";
 import { createCheckoutSession, getSwinmoEnv, operatorLabel, XOF_COUNTRIES, type SwinmoCharge } from "@/lib/payments/swinmo";
@@ -200,6 +201,17 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
         message: `Paiement échoué${charge.failure_reason ? ` (${charge.failure_reason})` : ""} · ${source}.`,
         meta: { charge_id: charge.id },
       });
+      // Le client est prévenu (une seule fois : seulement au passage à « failed »).
+      const { data: r } = await db.from("reservations").select("*").eq("id", payment.reservation_id).single<ReservationRow>();
+      if (r?.email) {
+        const canPay = r.status === "nouvelle" && !isHoldExpired(r.created_at);
+        await sendEmail({
+          template: "paiement-echoue",
+          to: { email: r.email, name: r.full_name },
+          content: reservationPaymentEmail(toReservationView(rowToReservationLike(r)), "failed", canPay),
+          entity: { type: "reservation", id: r.id },
+        });
+      }
     }
     return "failed";
   }

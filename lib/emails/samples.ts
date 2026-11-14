@@ -16,6 +16,7 @@ import {
   type EmailTemplateId,
 } from "./templates";
 import { teamDailyEmail } from "./daily";
+import { reservationPaymentEmail, subscriptionPaymentEmail } from "./payments";
 import { liveReviewEmail, liveToReviewEmail, subscriptionPaidEmail, subscriptionReminderEmail } from "./lives";
 
 const reservation = toReservationView({
@@ -88,6 +89,14 @@ export function renderSample(id: EmailTemplateId): EmailContent {
       });
     case "abonnement-paye":
       return subscriptionPaidEmail({ firstName: "Kofi", paidUntil: "2027-01-02T10:00:00Z", amount: 5000 });
+    case "paiement-echoue":
+      return reservationPaymentEmail(reservation, "failed", true);
+    case "paiement-relance":
+      return reservationPaymentEmail(reservation, "reminder", false);
+    case "abonnement-echoue":
+      return subscriptionPaymentEmail({ firstName: "Kofi" }, "failed");
+    case "abonnement-relance":
+      return subscriptionPaymentEmail({ firstName: "Kofi" }, "reminder");
     case "abonnement-rappel":
       return subscriptionReminderEmail({ firstName: "Kofi", paidUntil: "2027-01-02T10:00:00Z" });
     case "live-valide":

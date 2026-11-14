@@ -6,6 +6,7 @@ import { getCountry } from "@/config/countries";
 import { livesConfig } from "@/config/lives";
 import { siteConfig } from "@/config/site";
 import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
+import { subscriptionPaymentEmail } from "@/lib/emails/payments";
 import { liveReviewEmail, liveToReviewEmail, subscriptionPaidEmail } from "@/lib/emails/lives";
 import { countrySlug, extendSubscription, hourLabel, isSubscriptionActive, PLATFORMS, type Platform } from "@/lib/lives";
 import { checkCharge } from "@/lib/payments/rules";
@@ -372,7 +373,23 @@ export async function applySubscriptionCharge(charge: SwinmoCharge, source: stri
     return "processing";
   }
   if (charge.status === "failed") {
-    await db.from("subscription_payments").update({ ...details, status: "failed" }).eq("id", payment.id).not("status", "in", "(succeeded,failed,amount_mismatch)");
+    const { data: changed } = await db
+      .from("subscription_payments")
+      .update({ ...details, status: "failed" })
+      .eq("id", payment.id)
+      .not("status", "in", "(succeeded,failed,amount_mismatch)")
+      .select("id");
+    if (changed?.length) {
+      const sub = await getSubscriber(payment.subscriber_id);
+      if (sub?.email) {
+        await sendEmail({
+          template: "abonnement-echoue",
+          to: { email: sub.email, name: sub.full_name },
+          content: subscriptionPaymentEmail({ firstName: sub.full_name.split(" ")[0] ?? "" }, "failed"),
+          entity: { type: "subscriber", id: sub.id },
+        });
+      }
+    }
     return "failed";
   }
 
