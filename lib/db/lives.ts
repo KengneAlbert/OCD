@@ -8,6 +8,7 @@ import { siteConfig } from "@/config/site";
 import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
 import { liveReviewEmail, liveToReviewEmail, subscriptionPaidEmail } from "@/lib/emails/lives";
 import { countrySlug, extendSubscription, hourLabel, isSubscriptionActive, PLATFORMS, type Platform } from "@/lib/lives";
+import { checkCharge } from "@/lib/payments/rules";
 import { createCheckoutSession, getSwinmoEnv, operatorLabel, XOF_COUNTRIES, type SwinmoCharge } from "@/lib/payments/swinmo";
 import { getServiceClient } from "@/lib/supabase/admin";
 import { logActivity } from "./activity";
@@ -340,19 +341,26 @@ export async function applySubscriptionCharge(charge: SwinmoCharge, source: stri
   const { data: payment } = await db.from("subscription_payments").select("*").eq("reference", charge.reference).maybeSingle<{ id: string; subscriber_id: string; reference: string; amount: number; currency: string }>();
   if (!payment) return "ignored";
 
-  if (charge.reference !== payment.reference || charge.amount !== payment.amount || charge.currency !== payment.currency) {
+  const verified = { charge_id: charge.id, paid_amount: charge.amount, verified_at: new Date().toISOString() };
+
+  // Concordance : référence, devise, montant payé ≥ montant attendu (pas de coupons).
+  const check = checkCharge(payment, charge);
+  if (!check.ok) {
+    if (charge.status === "succeeded") {
+      await db.from("subscription_payments").update({ ...verified, status: "amount_mismatch", raw: charge }).eq("id", payment.id).neq("status", "succeeded");
+    }
     await logActivity({
       entityType: "subscriber",
       entityId: payment.subscriber_id,
       action: "payment_anomaly",
-      message: `⚠️ Paiement d'abonnement incohérent ignoré (${charge.amount} ${charge.currency}).`,
-      meta: { charge_id: charge.id },
+      message: `⚠️ Paiement d'abonnement incohérent (${check.reason}) : ${charge.amount} ${charge.currency} reçu pour ${payment.amount} ${payment.currency} attendu. Abonnement NON prolongé.`,
+      meta: { charge_id: charge.id, reason: check.reason },
     });
     return "mismatch";
   }
 
   const details = {
-    charge_id: charge.id,
+    ...verified,
     fee: charge.fee ?? null,
     net: charge.net ?? null,
     operator: charge.payment_method?.operator ?? null,
@@ -360,11 +368,11 @@ export async function applySubscriptionCharge(charge: SwinmoCharge, source: stri
     raw: charge,
   };
   if (charge.status === "processing") {
-    await db.from("subscription_payments").update({ ...details, status: "processing" }).eq("id", payment.id).neq("status", "succeeded");
+    await db.from("subscription_payments").update({ ...details, status: "processing" }).eq("id", payment.id).not("status", "in", "(succeeded,amount_mismatch)");
     return "processing";
   }
   if (charge.status === "failed") {
-    await db.from("subscription_payments").update({ ...details, status: "failed" }).eq("id", payment.id).not("status", "in", "(succeeded,failed)");
+    await db.from("subscription_payments").update({ ...details, status: "failed" }).eq("id", payment.id).not("status", "in", "(succeeded,failed,amount_mismatch)");
     return "failed";
   }
 

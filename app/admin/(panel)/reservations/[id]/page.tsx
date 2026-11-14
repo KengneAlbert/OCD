@@ -141,7 +141,7 @@ export default async function ReservationDetailPage({ params }: { params: Promis
                       <span className="font-mono">{p.reference}</span>
                     </span>
                     <span className="text-muted-foreground">
-                      {{ open: "ouvert", processing: "en cours", succeeded: "payé", failed: `échoué${p.failure_reason ? ` (${p.failure_reason})` : ""}`, expired: "expiré" }[p.status]} · {formatDateTime(p.created_at)}
+                      {{ open: "ouvert", processing: "en cours", succeeded: "payé", failed: `échoué${p.failure_reason ? ` (${p.failure_reason})` : ""}`, expired: "expiré", amount_mismatch: "montant incohérent" }[p.status]} · {formatDateTime(p.created_at)}
                     </span>
                   </li>
                 ))}

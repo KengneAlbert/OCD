@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { siteConfig } from "@/config/site";
 import { getBrevoEnv, sendEmail } from "@/lib/emails/send";
 import { reservationPaidEmail, reservationTeamEmail, toReservationView } from "@/lib/emails/templates";
+import { checkCharge } from "@/lib/payments/rules";
 import { createCheckoutSession, getSwinmoEnv, operatorLabel, XOF_COUNTRIES, type SwinmoCharge } from "@/lib/payments/swinmo";
 import { getServiceClient } from "@/lib/supabase/admin";
 import { logActivity } from "./activity";
@@ -18,7 +19,11 @@ export interface PaymentRow {
   session_id: string | null;
   charge_id: string | null;
   reference: string;
-  status: "open" | "processing" | "succeeded" | "failed" | "expired";
+  status: "open" | "processing" | "succeeded" | "failed" | "expired" | "amount_mismatch";
+  paid_amount: number | null;
+  verified_at: string | null;
+  reminder_count: number;
+  last_reminder_at: string | null;
   amount: number;
   currency: string;
   fee: number | null;
@@ -146,20 +151,27 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
   const { data: payment } = await db.from("payments").select("*").eq("reference", charge.reference).maybeSingle<PaymentRow>();
   if (!payment) return "ignored";
 
-  // Contrôles d'intégrité exigés par Swinmo : montant, devise, référence.
-  if (charge.reference !== payment.reference || charge.amount !== payment.amount || charge.currency !== payment.currency) {
+  const verified = { charge_id: charge.id, paid_amount: charge.amount, verified_at: new Date().toISOString() };
+
+  // Concordance : référence, devise, montant payé ≥ montant attendu (pas de coupons).
+  const check = checkCharge(payment, charge);
+  if (!check.ok) {
+    // Un paiement réussi mais incohérent n'accorde rien : statut « amount_mismatch », alerte au journal.
+    if (charge.status === "succeeded") {
+      await db.from("payments").update({ ...verified, status: "amount_mismatch", raw: charge }).eq("id", payment.id).neq("status", "succeeded");
+    }
     await logActivity({
       entityType: "reservation",
       entityId: payment.reservation_id,
       action: "payment_anomaly",
-      message: `⚠️ Paiement incohérent ignoré (${charge.amount} ${charge.currency}, réf. ${charge.reference}).`,
-      meta: { charge_id: charge.id, expected: { amount: payment.amount, currency: payment.currency, reference: payment.reference } },
+      message: `⚠️ Paiement incohérent (${check.reason}) : ${charge.amount} ${charge.currency} reçu pour ${payment.amount} ${payment.currency} attendu, réf. ${charge.reference}. Aucun accès accordé.`,
+      meta: { charge_id: charge.id, reason: check.reason, expected: { amount: payment.amount, currency: payment.currency, reference: payment.reference } },
     });
     return "mismatch";
   }
 
   const details = {
-    charge_id: charge.id,
+    ...verified,
     fee: charge.fee ?? null,
     net: charge.net ?? null,
     operator: charge.payment_method?.operator ?? null,
@@ -169,7 +181,7 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
   };
 
   if (charge.status === "processing") {
-    await db.from("payments").update({ ...details, status: "processing" }).eq("id", payment.id).neq("status", "succeeded");
+    await db.from("payments").update({ ...details, status: "processing" }).eq("id", payment.id).not("status", "in", "(succeeded,amount_mismatch)");
     return "processing";
   }
 
@@ -178,7 +190,7 @@ export async function applyCharge(charge: SwinmoCharge, source: "webhook" | "ret
       .from("payments")
       .update({ ...details, status: "failed" })
       .eq("id", payment.id)
-      .not("status", "in", "(succeeded,failed)")
+      .not("status", "in", "(succeeded,failed,amount_mismatch)")
       .select("id");
     if (changed?.length) {
       await logActivity({
