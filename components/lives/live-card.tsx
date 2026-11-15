@@ -9,6 +9,9 @@ import { Flag } from "@/components/ui/flag";
 import { cn } from "@/lib/utils";
 import { ShareButton } from "./share-button";
 
+/** Au-delà, la durée n'est pas affichée (un vrai live dure au plus ~4 h ; lives de démo permanents). */
+const MAX_SINCE_MS = 6 * 3_600_000;
+
 const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 const initialsOf = (name: string) =>
@@ -91,7 +94,9 @@ export function LiveCard({ live }: { live: PublicLive }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] flex items-center justify-between gap-2 bg-gradient-to-b from-black/55 to-transparent px-3 pt-3 pb-10">
         <span className="flex items-center gap-2 text-xs font-medium text-white/90">
           <span className="rounded-[4px] bg-[#FE2C55] px-1.5 py-[3px] text-[10px] leading-none font-bold tracking-wider text-white">LIVE</span>
-          <span suppressHydrationWarning>{sinceLabel(live.startedAt).replace("depuis ", "")}</span>
+          {Date.now() - new Date(live.startedAt).getTime() < MAX_SINCE_MS && (
+            <span suppressHydrationWarning>{sinceLabel(live.startedAt).replace("depuis ", "")}</span>
+          )}
         </span>
         {featured && <span className="text-[11px] font-semibold text-ocd-orange">À la une</span>}
       </div>
