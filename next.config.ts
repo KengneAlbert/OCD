@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
       { source: "/lives", destination: "/live", permanent: true },
       { source: "/espace", destination: "/moi", permanent: true },
       { source: "/espace/connexion", destination: "/connexion", permanent: true },
+      // Connexion Google / lien magique : si Supabase renvoie sur l'accueil (adresse de retour non autorisée,
+      // il se rabat sur son « Site URL »), on termine quand même la connexion. Les paramètres sont conservés.
+      { source: "/", has: [{ type: "query", key: "code" }], destination: "/auth/callback", permanent: false },
+      { source: "/", has: [{ type: "query", key: "error_description" }], destination: "/connexion?erreur=1", permanent: false },
     ];
   },
   async headers() {
