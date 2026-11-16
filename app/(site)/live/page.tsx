@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { AutoRefresh } from "@/components/lives/auto-refresh";
 import { CountryList, EmptyLives, LiveGrid, SubscribeCta } from "@/components/lives/directory";
 import { MyCountry } from "@/components/lives/my-country";
@@ -34,7 +36,17 @@ export default async function LiveIndexPage() {
               : "Les vendeurs de ton pays, en live sur TikTok."}
           </p>
         </div>
-        <ValidationStatus serverNow={now.toISOString()} />
+        <div className="flex flex-col gap-3 md:items-end">
+          <ValidationStatus serverNow={now.toISOString()} />
+          {/* Accès direct pour les vendeurs, sans descendre jusqu'au bloc du bas */}
+          <Link
+            href="/moi"
+            className="group inline-flex h-11 w-fit items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-semibold transition hover:border-foreground/40"
+          >
+            Rejoindre l&apos;annuaire
+            <ArrowRight className="size-4 transition group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        </div>
       </header>
 
       <div className="mt-10">
